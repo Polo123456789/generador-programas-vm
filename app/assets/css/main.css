@@ -4,6 +4,11 @@ body {
     font-family: 'Calibri', sans-serif;
 }
 
+.container {
+    max-width: clamp(300px, 90%, 1320px);
+    margin: 0 auto;
+}
+
 @media print {
     body {
         font-size: 11pt;
@@ -16,5 +21,10 @@ body {
 
     .dont-print {
         display: none;
+    }
+
+    .container {
+        max-width: 100%;
+        padding: 0;
     }
 }

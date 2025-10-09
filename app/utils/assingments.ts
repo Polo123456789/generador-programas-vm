@@ -27,6 +27,7 @@ export interface Assignment {
 export interface Assingments {
     date: string
     songs: number[]
+    president: string
     assignedReading: string
     treasures: Assignment
     gems: Assignment
@@ -34,6 +35,7 @@ export interface Assingments {
     school: Assignment[]
     livingSpeeches: Assignment[]
     book: Assignment
+    finalPrayer: string
 }
 
 export async function fetchAssingments(url: string): Promise<Assingments[]> {
@@ -43,9 +45,10 @@ export async function fetchAssingments(url: string): Promise<Assingments[]> {
     for (const week of weeks) {
         const scraped = await extractAssingments(week)
         const assingment: Assingments = {
-            date: scraped.date,
+            date: titleCase(scraped.date),
             songs: scraped.songs,
-            assignedReading: scraped.assignedReading,
+            president: '',
+            assignedReading: titleCase(scraped.assignedReading),
             treasures: {
                 title: scraped.treasuresTitle,
                 duration: 10,
@@ -78,6 +81,7 @@ export async function fetchAssingments(url: string): Promise<Assingments[]> {
                 student: '',
                 assistant: '',
             },
+            finalPrayer: '',
 
         }
         results.push(assingment)

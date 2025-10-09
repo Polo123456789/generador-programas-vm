@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const text = defineModel<string>('');
+const text = defineModel<string>();
 </script>
 
 <template>
