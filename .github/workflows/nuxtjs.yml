@@ -50,17 +50,17 @@ jobs:
              echo "Unable to determine package manager"
              exit 1
            fi
-       - name: Setup Node (Bun)
-         uses: actions/setup-node@v4
-         with:
-           node-version: "20"
-         if: steps.detect-package-manager.outputs.manager == 'bun'
-       - name: Setup Node (npm/yarn)
-         uses: actions/setup-node@v4
-         with:
-           node-version: "20"
-           cache: ${{ steps.detect-package-manager.outputs.manager }}
-         if: steps.detect-package-manager.outputs.manager != 'bun'
+      - name: Setup Node (Bun)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+        if: steps.detect-package-manager.outputs.manager == 'bun'
+      - name: Setup Node (npm/yarn)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: ${{ steps.detect-package-manager.outputs.manager }}
+        if: steps.detect-package-manager.outputs.manager != 'bun'
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
