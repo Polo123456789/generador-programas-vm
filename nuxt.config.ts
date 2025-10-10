@@ -7,5 +7,8 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   vite: {
       plugins: [tailwindcss()],
+  },
+  app: {
+    baseURL: '/generador-programas-vm/',
   }
 })
