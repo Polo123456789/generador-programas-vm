@@ -146,7 +146,53 @@ function fetchAllAssingments() {
                             <PrintableInput v-model="assingment.finalPrayer" />
                         </td>
                     </tr>
+                </tbody>
+            </table>
+        </div>
 
+        <div class="dont-break mb-8" v-if="assingments.length > 0">
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr>
+                        <th colspan="3" class="text-lg bg-amber-700 text-white font-bold p-1 mt-2 border border-black">
+                            Seamos Mejores Maestros
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template v-for="assingment in assingments">
+                        <tr>
+                            <td colspan="3" class="font-bold text-white bg-amber-600 p-1 mt-2 border border-black">
+                                {{assingment.date}}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="border px-2">
+                                Lectura
+                            </td>
+                            <td colspan="2" class="border text-center">
+                                {{assingment.reading.student}}
+                            </td>
+                        </tr>
+                        <tr v-for="a in assingment.school">
+                            <td class="border px-2">
+                                {{ a.title }} ({{ a.duration }} mins.)
+                            </td>
+                            <template v-if="a.assistant !== undefined">
+                                <td class="border text-center">
+                                    {{a.student}}
+                                </td>
+                                <td class="border text-center">
+                                    {{a.assistant}}
+                                </td>
+                            </template>
+                            <template v-else>
+                                <td colspan="2" class="border text-center">
+                                    {{a.student}}
+                                </td>
+                            </template>
+                        </tr>
+                    </template>
                 </tbody>
             </table>
         </div>
