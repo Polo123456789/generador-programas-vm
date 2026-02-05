@@ -97,7 +97,7 @@ function titleCase(str: string): string {
 }
 
 async function getRequest(url: string) {
-    const proxyUrl = `https://proxy.corsfix.com/?${(url)}`
+    const proxyUrl = `https://corsproxy.io/?url=${(url)}`
     const res = await fetch(proxyUrl)
     if (!res.ok) {
         throw new Error(`Failed to getRequest ${url} via proxy: ${res.statusText}`)
