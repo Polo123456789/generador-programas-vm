@@ -97,7 +97,7 @@ function titleCase(str: string): string {
 }
 
 async function getRequest(url: string) {
-    const proxyUrl = `https://corsproxy.io?url=${encodeURIComponent(url)}`
+    const proxyUrl = `https://proxy.corsfix.com/?${(url)}`
     const res = await fetch(proxyUrl)
     if (!res.ok) {
         throw new Error(`Failed to getRequest ${url} via proxy: ${res.statusText}`)
@@ -117,6 +117,9 @@ async function extractWeeks(url: string): Promise<Week[]> {
     $weeks.each((_, el) => {
         const $el = $(el)
         const name = $el.text().trim()
+        if (name === "Lectura bíblica para la Conmemoración del 2026") {
+            return
+        }
         const href = $el.attr('href')
         if (href) {
             const fullUrl = new URL(href, url).href
