@@ -5,7 +5,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
   const storedValue = ref<T>(initialValue)
 
   // Solo ejecutaremos el código del localStorage en el cliente
-  if (process.client) {
+  if (import.meta.client) {
     // Obtenemos el valor inicial del localStorage
     const item = window.localStorage.getItem(key)
     if (item) {
