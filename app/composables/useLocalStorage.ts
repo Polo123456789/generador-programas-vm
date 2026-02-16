@@ -1,29 +1,36 @@
 import { ref, watch } from 'vue'
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
-  // Estado reactivo para almacenar el valor
   const storedValue = ref<T>(initialValue)
+  
+  console.log(`[useLocalStorage:${key}] Inicializando...`)
 
-  // Solo ejecutaremos el código del localStorage en el cliente
   if (import.meta.client) {
-    // Obtenemos el valor inicial del localStorage
     const item = window.localStorage.getItem(key)
+    console.log(`[useLocalStorage:${key}] Valor en localStorage:`, item ? 'EXISTS' : 'NULL')
+    
     if (item) {
       try {
         storedValue.value = JSON.parse(item)
+        console.log(`[useLocalStorage:${key}] Valor cargado:`, storedValue.value)
       } catch (e) {
-        console.error(`Error al parsear el valor del localStorage para la clave "${key}"`, e)
+        console.error(`[useLocalStorage:${key}] Error parseando:`, e)
       }
+    } else {
+      console.log(`[useLocalStorage:${key}] Usando valor inicial`)
     }
 
-    // Observamos cambios en el estado y los guardamos en localStorage
     watch(storedValue, (newValue) => {
+      console.log(`[useLocalStorage:${key}] WATCH triggered!`, newValue)
       try {
         window.localStorage.setItem(key, JSON.stringify(newValue))
+        console.log(`[useLocalStorage:${key}] Guardado exitoso`)
       } catch (e) {
-        console.error(`Error al guardar el valor en el localStorage para la clave "${key}"`, e)
+        console.error(`[useLocalStorage:${key}] Error guardando:`, e)
       }
-    }, { deep: true }) // 'deep' es útil para observar cambios en objetos anidados
+    }, { deep: true })
+  } else {
+    console.log(`[useLocalStorage:${key}] SSR - no se accede a localStorage`)
   }
 
   return storedValue

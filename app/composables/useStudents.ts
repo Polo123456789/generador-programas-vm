@@ -163,12 +163,22 @@ export function useStudents() {
   }
 
   function assignStudent(record: Omit<AssignmentRecord, 'id' | 'createdAt'>): void {
+    console.log('[assignStudent] Iniciando asignación:', record)
+    console.log('[assignStudent] Estado antes:', assignmentHistory.value.length, 'registros')
+    
     const fullRecord: AssignmentRecord = {
       ...record,
       id: generateId(),
       createdAt: Date.now(),
     }
-    assignmentHistory.value.push(fullRecord)
+    
+    console.log('[assignStudent] Registro completo:', fullRecord)
+    
+    // Crear nuevo array para forzar reactividad
+    assignmentHistory.value = [...assignmentHistory.value, fullRecord]
+    
+    console.log('[assignStudent] Estado después:', assignmentHistory.value.length, 'registros')
+    console.log('[assignStudent] assignmentHistory ref:', assignmentHistory)
   }
 
   function getStudentName(studentId: string): string {
