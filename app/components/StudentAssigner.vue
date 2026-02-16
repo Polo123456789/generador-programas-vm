@@ -23,7 +23,12 @@ const showCompanionModal = ref(false)
 const selectedStudentId = ref<string | null>(null)
 
 const studentsList = computed(() => {
-  return getStudentsSortedByLastAssignment(props.type, props.weekDate)
+  const allStudents = getStudentsSortedByLastAssignment(props.type, props.weekDate)
+  // For reading assignments, only show male students
+  if (props.type === 'reading') {
+    return allStudents.filter(s => s.gender === 'M')
+  }
+  return allStudents
 })
 
 // Split students by gender for school assignments
@@ -148,11 +153,14 @@ function formatLastTogether(date: string | null): string {
       </h3>
       
       <div v-if="studentsList.length === 0" class="text-gray-500 text-center py-4">
-        No hay estudiantes activos. Añade estudiantes en la página de gestión.
+        <span v-if="type === 'reading'">No hay estudiantes varones activos.</span>
+        <span v-else>No hay estudiantes activos.</span>
+        Añade estudiantes en la página de gestión.
       </div>
-      
-      <!-- Single column for reading -->
-      <div v-else-if="type === 'reading'" class="space-y-2">
+
+      <!-- Single column for reading (male only) -->
+      <div v-else-if="type === 'reading'" class="space-y-2 max-w-md mx-auto">
+        <h4 class="font-semibold mb-2 text-blue-700 border-b border-blue-200 pb-1">Varones</h4>
         <div
           v-for="(student, index) in studentsList"
           :key="student.id"
@@ -162,9 +170,7 @@ function formatLastTogether(date: string | null): string {
         >
           <div class="flex justify-between items-center">
             <span class="font-medium">{{ student.name }}</span>
-            <span class="text-xs px-2 py-1 rounded" :class="student.gender === 'M' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'">
-              {{ student.gender }}
-            </span>
+            <span class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">M</span>
           </div>
           <div class="text-sm text-gray-600 mt-1">
             Última asignación: {{ formatLastAssignment(student.lastAssignmentDate) }}
