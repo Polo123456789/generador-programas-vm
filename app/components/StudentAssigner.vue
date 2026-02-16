@@ -26,6 +26,15 @@ const studentsList = computed(() => {
   return getStudentsSortedByLastAssignment(props.type, props.weekDate)
 })
 
+// Split students by gender for school assignments
+const maleStudents = computed(() => {
+  return studentsList.value.filter(s => s.gender === 'M')
+})
+
+const femaleStudents = computed(() => {
+  return studentsList.value.filter(s => s.gender === 'F')
+})
+
 const companionsList = computed(() => {
   if (!selectedStudentId.value) return []
   return getCompanionsSorted(selectedStudentId.value, props.weekDate, props.type)
@@ -131,7 +140,7 @@ function formatLastTogether(date: string | null): string {
 
   <!-- Student Selection Modal -->
   <div v-if="showStudentModal" class="dont-print fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="closeStudentModal">
-    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+    <div class="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
       <h3 class="text-lg font-bold mb-4">
         Seleccionar Estudiante
         <span v-if="type === 'reading'">- Lectura</span>
@@ -142,7 +151,8 @@ function formatLastTogether(date: string | null): string {
         No hay estudiantes activos. Añade estudiantes en la página de gestión.
       </div>
       
-      <div v-else class="space-y-2">
+      <!-- Single column for reading -->
+      <div v-else-if="type === 'reading'" class="space-y-2">
         <div
           v-for="(student, index) in studentsList"
           :key="student.id"
@@ -161,6 +171,53 @@ function formatLastTogether(date: string | null): string {
           </div>
           <div v-if="index === 0" class="text-xs text-amber-700 mt-1 font-medium">
             Recomendación del sistema
+          </div>
+        </div>
+      </div>
+      
+      <!-- Two columns for school -->
+      <div v-else class="grid grid-cols-2 gap-4">
+        <!-- Male students -->
+        <div>
+          <h4 class="font-semibold mb-2 text-blue-700 border-b border-blue-200 pb-1">Masculinos</h4>
+          <div v-if="maleStudents.length === 0" class="text-gray-400 text-sm">
+            No hay estudiantes masculinos
+          </div>
+          <div v-else class="space-y-2">
+            <div
+              v-for="(student, index) in maleStudents"
+              :key="student.id"
+              @click="selectStudent(student.id)"
+              class="p-2 border rounded cursor-pointer hover:bg-amber-50 transition-colors text-sm"
+              :class="{ 'bg-amber-100 border-amber-500': index === 0 }"
+            >
+              <div class="font-medium">{{ student.name }}</div>
+              <div class="text-xs text-gray-600">
+                {{ formatLastAssignment(student.lastAssignmentDate) }}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Female students -->
+        <div>
+          <h4 class="font-semibold mb-2 text-pink-700 border-b border-pink-200 pb-1">Femeninos</h4>
+          <div v-if="femaleStudents.length === 0" class="text-gray-400 text-sm">
+            No hay estudiantes femeninos
+          </div>
+          <div v-else class="space-y-2">
+            <div
+              v-for="(student, index) in femaleStudents"
+              :key="student.id"
+              @click="selectStudent(student.id)"
+              class="p-2 border rounded cursor-pointer hover:bg-amber-50 transition-colors text-sm"
+              :class="{ 'bg-amber-100 border-amber-500': index === 0 }"
+            >
+              <div class="font-medium">{{ student.name }}</div>
+              <div class="text-xs text-gray-600">
+                {{ formatLastAssignment(student.lastAssignmentDate) }}
+              </div>
+            </div>
           </div>
         </div>
       </div>
