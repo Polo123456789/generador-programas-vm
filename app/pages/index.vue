@@ -4,16 +4,23 @@ import {fetchAssingments, type Assingments, type Assignment} from '~/utils/assin
 const url = useLocalStorage<string>("lastAssingmentsURL", "")
 const assingments = useLocalStorage<Assingments[]>("assingments", [])
 const loadingAssingments = ref(false)
+const assingmentsError = ref('')
 
 function fetchAllAssingments() {
     if (!url.value) return
     loadingAssingments.value = true
-    fetchAssingments(url.value).then(data => {
-        assingments.value = data
-    })
-    .finally(() => {
-        loadingAssingments.value = false
-    })
+    assingmentsError.value = ''
+    fetchAssingments(url.value)
+        .then(data => {
+            assingments.value = data
+        })
+        .catch((error) => {
+            console.error('[fetchAllAssingments] Error cargando asignaciones:', error)
+            assingmentsError.value = 'No se pudo cargar el programa. Revisa el enlace o intenta de nuevo.'
+        })
+        .finally(() => {
+            loadingAssingments.value = false
+        })
 }
 
 function updateReadingStudent(assingment: Assingments, value: Assignment) {
@@ -47,6 +54,9 @@ function updateSchoolStudent(a: Assignment, value: Assignment) {
             <Button @click="assingments = []">
                 Borrar
             </Button>
+        </div>
+        <div v-if="assingmentsError" class="dont-print px-4 pb-2 text-sm text-red-700">
+            {{ assingmentsError }}
         </div>
         <div v-for="(assingment, idx) in assingments" :key="idx" class="dont-break mb-8">
             <table class="w-full border-collapse pt-4">
