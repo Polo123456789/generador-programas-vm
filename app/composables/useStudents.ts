@@ -1,4 +1,4 @@
-import { ref, type Ref, onMounted, nextTick } from 'vue'
+import type { Ref } from 'vue'
 import type { Student, AssignmentRecord } from '~/utils/students'
 import { generateId } from '~/utils/students'
 import { debugLog } from '~/utils/debug'
@@ -14,17 +14,15 @@ const MONTHS_ES: Record<string, number> = {
 
 // Parsear fecha del formato "2-8 De Marzo" a timestamp
 function parseWeekDate(dateStr: string): number {
-  // Ejemplo: "2-8 De Marzo" -> extraer "2" y "Marzo"
   const match = dateStr.toLowerCase().match(/(\d+)-\d+\s+de\s+(\w+)/)
   if (!match || !match[1] || !match[2]) return 0
-  
+
   const day = parseInt(match[1])
   const monthName = match[2].toLowerCase()
   const month = MONTHS_ES[monthName]
-  
+
   if (month === undefined) return 0
-  
-  // Usar el año actual (asumiendo que las asignaciones son del año actual)
+
   const year = new Date().getFullYear()
   return new Date(year, month, day).getTime()
 }
@@ -32,50 +30,30 @@ function parseWeekDate(dateStr: string): number {
 // Variables para el estado global
 let globalStudents: Ref<Student[]> | null = null
 let globalAssignmentHistory: Ref<AssignmentRecord[]> | null = null
-let initialized = false
 
 function initializeGlobalState() {
   debugLog('useStudents', 'Initializing global state...')
   if (!globalStudents) {
     debugLog('useStudents', 'Creating globalStudents ref')
-    globalStudents = useLocalStorage<Student[]>(STUDENTS_KEY, [])
+    globalStudents = useLocalStorage<Student[]>(STUDENTS_KEY, []) as Ref<Student[]>
   }
   if (!globalAssignmentHistory) {
     debugLog('useStudents', 'Creating globalAssignmentHistory ref')
-    globalAssignmentHistory = useLocalStorage<AssignmentRecord[]>(ASSIGNMENT_HISTORY_KEY, [])
+    globalAssignmentHistory = useLocalStorage<AssignmentRecord[]>(ASSIGNMENT_HISTORY_KEY, []) as Ref<AssignmentRecord[]>
   }
-  initialized = true
   debugLog('useStudents', 'Global state initialized')
 }
 
 export function useStudents() {
-  const ready = ref(false)
+  debugLog('useStudents', 'useStudents() called')
 
-  debugLog('useStudents', 'useStudents() called, initialized:', initialized, 'client:', import.meta.client)
-
-  // Defer initialization to client-side after hydration
-  onMounted(() => {
-    debugLog('useStudents', 'onMounted triggered')
-    nextTick(() => {
-      debugLog('useStudents', 'nextTick callback, initialized:', initialized)
-      if (!initialized) {
-        initializeGlobalState()
-      }
-      ready.value = true
-      debugLog('useStudents', 'Ready state set to true')
-    })
-  })
-
-  // Initialize immediately if already on client (for subsequent calls)
-  if (import.meta.client && !initialized) {
-    debugLog('useStudents', 'Immediate client-side initialization')
+  // Initialize on first call
+  if (!globalStudents || !globalAssignmentHistory) {
     initializeGlobalState()
-    ready.value = true
   }
 
-  // If not yet initialized (SSR), create temporary refs
-  const students = globalStudents ?? ref<Student[]>([])
-  const assignmentHistory = globalAssignmentHistory ?? ref<AssignmentRecord[]>([])
+  const students = globalStudents!
+  const assignmentHistory = globalAssignmentHistory!
 
   debugLog('useStudents', 'Refs assigned:', { students: !!globalStudents, assignmentHistory: !!globalAssignmentHistory })
 
@@ -98,43 +76,40 @@ export function useStudents() {
   }
 
   function getLastAssignmentDate(studentId: string, type: 'school' | 'reading'): string | null {
-    // Buscar cuando el estudiante es el principal O el acompañante
     const records = assignmentHistory.value
-      .filter(r => 
-        (r.studentId === studentId || r.companionId === studentId) && 
+      .filter(r =>
+        (r.studentId === studentId || r.companionId === studentId) &&
         r.assignmentType === type
       )
       .sort((a, b) => b.createdAt - a.createdAt)
-    
+
     return records.length > 0 ? records[0]?.weekDate ?? null : null
   }
 
   function getLastTimeTogether(studentId1: string, studentId2: string): string | null {
     const records = assignmentHistory.value
-      .filter(r => 
+      .filter(r =>
         (r.studentId === studentId1 && r.companionId === studentId2) ||
         (r.studentId === studentId2 && r.companionId === studentId1)
       )
       .sort((a, b) => b.createdAt - a.createdAt)
-    
+
     return records.length > 0 ? records[0]?.weekDate ?? null : null
   }
 
   function getStudentsSortedByLastAssignment(type: 'school' | 'reading', _weekDate: string): Array<Student & { lastAssignmentDate: string | null }> {
     const visibleStudents = students.value.filter(s => !s.hidden)
-    
+
     return visibleStudents
       .map(student => ({
         ...student,
         lastAssignmentDate: getLastAssignmentDate(student.id, type),
       }))
       .sort((a, b) => {
-        // Students with no assignments come first
         if (!a.lastAssignmentDate && !b.lastAssignmentDate) return 0
         if (!a.lastAssignmentDate) return -1
         if (!b.lastAssignmentDate) return 1
-        
-        // Parse dates and sort chronologically (oldest first)
+
         const dateA = parseWeekDate(a.lastAssignmentDate)
         const dateB = parseWeekDate(b.lastAssignmentDate)
         return dateA - dateB
@@ -160,7 +135,6 @@ export function useStudents() {
         lastAssignmentDate: getLastAssignmentDate(student.id, type),
       }))
       .sort((a, b) => {
-        // Primary sort: by lastTimeTogether (never together first, then oldest)
         let comparison = 0
         if (!a.lastTimeTogether && !b.lastTimeTogether) {
           comparison = 0
@@ -174,7 +148,6 @@ export function useStudents() {
           comparison = dateA - dateB
         }
 
-        // If tied on lastTimeTogether, secondary sort by lastAssignmentDate
         if (comparison === 0) {
           if (!a.lastAssignmentDate && !b.lastAssignmentDate) {
             comparison = 0
@@ -206,7 +179,6 @@ export function useStudents() {
 
     debugLog('useStudents', 'Creating new record:', fullRecord)
 
-    // Create new array to trigger reactivity
     const newArray = [...assignmentHistory.value, fullRecord]
     debugLog('useStudents', 'New array length:', newArray.length)
 
@@ -223,7 +195,6 @@ export function useStudents() {
   return {
     students,
     assignmentHistory,
-    ready,
     addStudent,
     toggleStudentHidden,
     getStudentsSortedByLastAssignment,
