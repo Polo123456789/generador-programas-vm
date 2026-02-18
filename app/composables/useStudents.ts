@@ -1,6 +1,7 @@
-import { ref, type Ref } from 'vue'
+import { ref, type Ref, onMounted, nextTick } from 'vue'
 import type { Student, AssignmentRecord } from '~/utils/students'
 import { generateId } from '~/utils/students'
+import { debugLog } from '~/utils/debug'
 
 const STUDENTS_KEY = 'students'
 const ASSIGNMENT_HISTORY_KEY = 'assignmentHistory'
@@ -28,25 +29,55 @@ function parseWeekDate(dateStr: string): number {
   return new Date(year, month, day).getTime()
 }
 
-// Variables para el estado global (lazy initialization)
+// Variables para el estado global
 let globalStudents: Ref<Student[]> | null = null
 let globalAssignmentHistory: Ref<AssignmentRecord[]> | null = null
+let initialized = false
 
 function initializeGlobalState() {
+  debugLog('useStudents', 'Initializing global state...')
   if (!globalStudents) {
+    debugLog('useStudents', 'Creating globalStudents ref')
     globalStudents = useLocalStorage<Student[]>(STUDENTS_KEY, [])
   }
   if (!globalAssignmentHistory) {
+    debugLog('useStudents', 'Creating globalAssignmentHistory ref')
     globalAssignmentHistory = useLocalStorage<AssignmentRecord[]>(ASSIGNMENT_HISTORY_KEY, [])
   }
+  initialized = true
+  debugLog('useStudents', 'Global state initialized')
 }
 
 export function useStudents() {
-  // Inicializar estado global en la primera llamada
-  initializeGlobalState()
-  
-  const students = globalStudents!
-  const assignmentHistory = globalAssignmentHistory!
+  const ready = ref(false)
+
+  debugLog('useStudents', 'useStudents() called, initialized:', initialized, 'client:', import.meta.client)
+
+  // Defer initialization to client-side after hydration
+  onMounted(() => {
+    debugLog('useStudents', 'onMounted triggered')
+    nextTick(() => {
+      debugLog('useStudents', 'nextTick callback, initialized:', initialized)
+      if (!initialized) {
+        initializeGlobalState()
+      }
+      ready.value = true
+      debugLog('useStudents', 'Ready state set to true')
+    })
+  })
+
+  // Initialize immediately if already on client (for subsequent calls)
+  if (import.meta.client && !initialized) {
+    debugLog('useStudents', 'Immediate client-side initialization')
+    initializeGlobalState()
+    ready.value = true
+  }
+
+  // If not yet initialized (SSR), create temporary refs
+  const students = globalStudents ?? ref<Student[]>([])
+  const assignmentHistory = globalAssignmentHistory ?? ref<AssignmentRecord[]>([])
+
+  debugLog('useStudents', 'Refs assigned:', { students: !!globalStudents, assignmentHistory: !!globalAssignmentHistory })
 
   function addStudent(name: string, gender: 'M' | 'F'): Student {
     const student: Student = {
@@ -163,22 +194,25 @@ export function useStudents() {
   }
 
   function assignStudent(record: Omit<AssignmentRecord, 'id' | 'createdAt'>): void {
-    console.log('[assignStudent] Iniciando asignación:', record)
-    console.log('[assignStudent] Estado antes:', assignmentHistory.value.length, 'registros')
-    
+    debugLog('useStudents', 'assignStudent() called:', record)
+    debugLog('useStudents', 'assignmentHistory ref:', assignmentHistory)
+    debugLog('useStudents', 'assignmentHistory.value before:', assignmentHistory.value.length)
+
     const fullRecord: AssignmentRecord = {
       ...record,
       id: generateId(),
       createdAt: Date.now(),
     }
-    
-    console.log('[assignStudent] Registro completo:', fullRecord)
-    
-    // Crear nuevo array para forzar reactividad
-    assignmentHistory.value = [...assignmentHistory.value, fullRecord]
-    
-    console.log('[assignStudent] Estado después:', assignmentHistory.value.length, 'registros')
-    console.log('[assignStudent] assignmentHistory ref:', assignmentHistory)
+
+    debugLog('useStudents', 'Creating new record:', fullRecord)
+
+    // Create new array to trigger reactivity
+    const newArray = [...assignmentHistory.value, fullRecord]
+    debugLog('useStudents', 'New array length:', newArray.length)
+
+    assignmentHistory.value = newArray
+
+    debugLog('useStudents', 'assignmentHistory.value after:', assignmentHistory.value.length)
   }
 
   function getStudentName(studentId: string): string {
@@ -189,6 +223,7 @@ export function useStudents() {
   return {
     students,
     assignmentHistory,
+    ready,
     addStudent,
     toggleStudentHidden,
     getStudentsSortedByLastAssignment,

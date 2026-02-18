@@ -1,36 +1,37 @@
 import { ref, watch } from 'vue'
+import { debugLog, debugError } from '~/utils/debug'
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
   const storedValue = ref<T>(initialValue)
-  
-  console.log(`[useLocalStorage:${key}] Inicializando...`)
+
+  debugLog('useLocalStorage', `Initializing "${key}"`)
 
   if (import.meta.client) {
     const item = window.localStorage.getItem(key)
-    console.log(`[useLocalStorage:${key}] Valor en localStorage:`, item ? 'EXISTS' : 'NULL')
-    
+    debugLog('useLocalStorage', `"${key}" localStorage value:`, item ? 'EXISTS' : 'NULL')
+
     if (item) {
       try {
         storedValue.value = JSON.parse(item)
-        console.log(`[useLocalStorage:${key}] Valor cargado:`, storedValue.value)
+        debugLog('useLocalStorage', `"${key}" loaded value:`, storedValue.value)
       } catch (e) {
-        console.error(`[useLocalStorage:${key}] Error parseando:`, e)
+        debugError('useLocalStorage', `Error parsing "${key}":`, e)
       }
     } else {
-      console.log(`[useLocalStorage:${key}] Usando valor inicial`)
+      debugLog('useLocalStorage', `"${key}" using initial value`)
     }
 
-    watch(storedValue, (newValue) => {
-      console.log(`[useLocalStorage:${key}] WATCH triggered!`, newValue)
+    watch(storedValue, (newValue, oldValue) => {
+      debugLog('useLocalStorage', `"${key}" WATCH triggered!`, { newValue, oldValue })
       try {
         window.localStorage.setItem(key, JSON.stringify(newValue))
-        console.log(`[useLocalStorage:${key}] Guardado exitoso`)
+        debugLog('useLocalStorage', `"${key}" saved successfully`)
       } catch (e) {
-        console.error(`[useLocalStorage:${key}] Error guardando:`, e)
+        debugError('useLocalStorage', `Error saving "${key}":`, e)
       }
-    }, { deep: true })
+    }, { deep: true, immediate: false })
   } else {
-    console.log(`[useLocalStorage:${key}] SSR - no se accede a localStorage`)
+    debugLog('useLocalStorage', `"${key}" SSR - localStorage not available`)
   }
 
   return storedValue
