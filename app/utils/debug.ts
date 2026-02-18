@@ -30,3 +30,16 @@ export function debugError(context: string, ...args: unknown[]): void {
     console.error(`[${context}]`, ...args)
   }
 }
+
+// Expose debug functions globally for browser console access
+declare global {
+  interface Window {
+    enableDebug: () => void
+    disableDebug: () => void
+  }
+}
+
+if (import.meta.client) {
+  window.enableDebug = enableDebug
+  window.disableDebug = disableDebug
+}
