@@ -185,6 +185,13 @@ export function useStudents() {
     assignmentHistory.value = newArray
 
     debugLog('useStudents', 'assignmentHistory.value after:', assignmentHistory.value.length)
+
+    // Verify localStorage was updated
+    setTimeout(() => {
+      const stored = window.localStorage.getItem(ASSIGNMENT_HISTORY_KEY)
+      const parsed = stored ? JSON.parse(stored) : []
+      debugLog('useStudents', 'localStorage verification:', parsed.length, 'records')
+    }, 100)
   }
 
   function getStudentName(studentId: string): string {

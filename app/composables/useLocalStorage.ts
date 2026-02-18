@@ -9,8 +9,9 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
 
   // Return existing ref if already created (singleton pattern)
   if (storageRefs.has(key)) {
-    debugLog('useLocalStorage', `"${key}" returning existing ref`)
-    return storageRefs.get(key) as ReturnType<typeof ref<T>>
+    const existingRef = storageRefs.get(key)
+    debugLog('useLocalStorage', `"${key}" returning existing ref, current value length:`, (existingRef?.value as unknown[])?.length)
+    return existingRef as ReturnType<typeof ref<T>>
   }
 
   // Create new ref
