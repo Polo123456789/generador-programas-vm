@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import type { Assignment } from '~/utils/assingments'
-import type { Student } from '~/utils/students'
 
 interface Props {
   modelValue: Assignment
@@ -16,7 +15,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: Assignment]
 }>()
 
-const { getStudentsSortedByLastAssignment, getCompanionsSorted, assignStudent, getStudentName, assignmentHistory } = useStudents()
+const { getStudentsSortedByLastAssignment, getCompanionsSorted, assignStudent, getStudentName } = useStudents()
 
 const showStudentModal = ref(false)
 const showCompanionModal = ref(false)

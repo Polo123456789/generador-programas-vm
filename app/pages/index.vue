@@ -2,9 +2,32 @@
 import {fetchAssingments, type Assingments, type Assignment} from '~/utils/assingments';
 
 const url = useLocalStorage<string>("lastAssingmentsURL", "")
-const assingments = useLocalStorage<Assingments[]>("assingments", [])
+const {
+    assignments: assingments,
+    clearAssignments,
+    lastSavedAt,
+    lastSaveError,
+    replaceAssignments,
+    saveStatus,
+} = usePersistentAssignments()
 const loadingAssingments = ref(false)
 const assingmentsError = ref('')
+
+const saveStatusText = computed(() => {
+    if (lastSaveError.value) {
+        return `Error guardando borrador: ${lastSaveError.value}`
+    }
+
+    if (saveStatus.value === 'saving') {
+        return 'Guardando borrador...'
+    }
+
+    if (lastSavedAt.value) {
+        return `Guardado ${new Date(lastSavedAt.value).toLocaleString()}`
+    }
+
+    return 'Sin borrador guardado'
+})
 
 function fetchAllAssingments() {
     if (!url.value) return
@@ -12,7 +35,7 @@ function fetchAllAssingments() {
     assingmentsError.value = ''
     fetchAssingments(url.value)
         .then(data => {
-            assingments.value = data
+            replaceAssignments(data)
         })
         .catch((error) => {
             console.error('[fetchAllAssingments] Error cargando asignaciones:', error)
@@ -51,12 +74,15 @@ function updateSchoolStudent(a: Assignment, value: Assignment) {
             <Button @click="fetchAllAssingments" :disabled="loadingAssingments">
                 Cargar
             </Button>
-            <Button @click="assingments = []">
+            <Button @click="clearAssignments">
                 Borrar
             </Button>
         </div>
         <div v-if="assingmentsError" class="dont-print px-4 pb-2 text-sm text-red-700">
             {{ assingmentsError }}
+        </div>
+        <div class="dont-print px-4 pb-3 text-sm" :class="lastSaveError ? 'text-red-700' : 'text-gray-600'">
+            {{ saveStatusText }}
         </div>
         <div v-for="(assingment, idx) in assingments" :key="idx" class="dont-break mb-8">
             <table class="w-full border-collapse pt-4">
