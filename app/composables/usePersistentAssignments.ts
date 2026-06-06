@@ -22,9 +22,6 @@ let lastSavedPayload: string | null = null
 let storageInitialized = false
 let storageUsageCount = 0
 let removeStorageListeners: (() => void) | null = null
-const flushPendingSave = () => {
-  saveNow()
-}
 
 export function usePersistentAssignments() {
   if (!globalAssignments) {
@@ -102,6 +99,10 @@ export function usePersistentAssignments() {
       saveStatus.value = 'error'
       lastSaveError.value = error instanceof Error ? error.message : 'No se pudo guardar el borrador'
     }
+  }
+
+  function flushPendingSave(): void {
+    saveNow()
   }
 
   function scheduleSave(): void {
