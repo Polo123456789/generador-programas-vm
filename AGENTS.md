@@ -1,193 +1,101 @@
-# AGENTS.md - Coding Guidelines for Generador Programas VM
+# AGENTS.md - Generador Programas VM
 
-## Project Overview
+## Project
 
-This is a **Nuxt.js 4** application with **Vue 3**, **TypeScript**, and **Tailwind CSS v4**. It generates printable weekly meeting programs by scraping data from external sources.
+This is a Nuxt 4 application using Vue 3, TypeScript, Tailwind CSS 4, and Bun.
 
-- **Package Manager**: Bun (bun.lock present)
-- **Framework**: Nuxt 4.1.3 with Vue 3.5
-- **Styling**: Tailwind CSS 4.1.14 via Vite plugin
-- **Linting**: ESLint 9 via @nuxt/eslint
+- Package manager: Bun
+- Deployment target: GitHub Pages
+- Published directory: `docs/`
+- GitHub Pages base URL: `/generador-programas-vm/`
+- Deployment branch: `master`
 
-## Build/Lint Commands
+## Development Commands
 
 ```bash
-# Development server (http://localhost:3000)
+bun install --frozen-lockfile
 bun run dev
-
-# Build for production
 bun run build
-
-# Generate static site (outputs to docs/ folder via rsync)
-bun run generate
-
-# Preview production build
 bun run preview
+```
 
-# Run ESLint
+## Required Validation
+
+Run all checks before generating or deploying:
+
+```bash
 bunx eslint .
-
-# Post-install hook (prepare Nuxt)
-bun run postinstall
+bunx nuxi typecheck
+bun run build
 ```
 
-### Test Commands
+## GitHub Pages Build
 
-**No test framework is currently configured.** If adding tests, recommended setup:
-- Use Vitest for unit tests (integrated with Nuxt)
-- Use @nuxt/test-utils for component/integration tests
-- Place tests alongside source files as `*.test.ts` or `*.spec.ts`
+Generate the static application with:
 
-## Code Style Guidelines
-
-### TypeScript
-
-- Use **strict TypeScript** with explicit types
-- Prefer `interface` over `type` for object shapes
-- Export interfaces that are used across modules
-- Use explicit return types on public functions
-
-```typescript
-// Good
-export interface Assignment {
-  title: string
-  duration: number
-  student: string
-  assistant?: string  // Optional fields last
-}
-
-export async function fetchAssignments(url: string): Promise<Assignment[]> {
-  // Implementation
-}
+```bash
+bun run generate
 ```
 
-### Vue Components
+This command runs `nuxt generate` and synchronizes `.output/public/` into
+`docs/`. Commit the resulting changes in `docs/`, including renamed or deleted
+hashed assets.
 
-- Use **Composition API** with `<script setup lang="ts">`
-- Use `defineModel<T>()` for v-model bindings
-- Scoped styles with `<style scoped>`
-- Component names in PascalCase (e.g., `PrintableInput.vue`)
+After generation:
 
-```vue
-<script setup lang="ts">
-const text = defineModel<string>();
-</script>
-
-<template>
-  <input type="text" v-model="text" />
-</template>
-
-<style scoped>
-input {
-  border: 1px solid #d1d5db;
-}
-</style>
+```bash
+git diff --check
+git status --short
 ```
 
-### Imports & Exports
+Verify that:
 
-- Use named exports for utilities and composables
-- Import Vue functions explicitly: `import { ref, watch } from 'vue'`
-- Group imports: external libs → internal modules → types
-- Use `~/` alias for app directory imports
+- `docs/index.html` references existing assets under `docs/_nuxt/`.
+- The generated app uses the `/generador-programas-vm/` base URL.
+- Old hashed assets removed by generation are included in the commit.
+- Temporary files such as `*.tsbuildinfo`, `.output/`, and caches are not
+  committed.
 
-```typescript
-// Order: external → internal → types
-import * as cheerio from 'cheerio'
-import { ref, watch } from 'vue'
-import { useLocalStorage } from '~/composables/useLocalStorage'
-import type { Assignment } from '~/utils/assignments'
+## Deployment
+
+GitHub Pages is deployed from the committed `docs/` directory on `master`.
+
+Use this sequence:
+
+```bash
+bunx eslint .
+bunx nuxi typecheck
+bun run generate
+git diff --check
+git add app docs
+git commit -m "<descriptive message>"
+git push origin master
 ```
 
-### Naming Conventions
+Before committing, inspect the staged changes with:
 
-- **Components**: PascalCase (e.g., `PrintableInput.vue`)
-- **Composables**: camelCase prefixed with `use` (e.g., `useLocalStorage.ts`)
-- **Utils**: camelCase (e.g., `assignments.ts`)
-- **Variables**: camelCase
-- **Types/Interfaces**: PascalCase
-- **Constants**: UPPER_SNAKE_CASE for true constants
-
-### Composables Pattern
-
-Always place reusable stateful logic in `app/composables/`:
-
-```typescript
-// app/composables/useLocalStorage.ts
-import { ref, watch } from 'vue'
-
-export function useLocalStorage<T>(key: string, initialValue: T) {
-  const storedValue = ref<T>(initialValue)
-  
-  if (process.client) {
-    // Client-side only logic
-    const item = window.localStorage.getItem(key)
-    // ... implementation
-  }
-  
-  return storedValue
-}
+```bash
+git status --short
+git diff --cached --check
+git diff --cached --stat
 ```
 
-### Error Handling
+Only include files related to the requested change and its generated deployment
+artifacts. Never discard unrelated user changes.
 
-- Always check fetch responses with `res.ok`
-- Throw descriptive errors with context
-- Use try-catch for JSON parsing
-- Handle optional chaining safely
+## TypeScript and Vue
 
-```typescript
-if (!res.ok) {
-  throw new Error(`Failed to fetch ${url}: ${res.statusText}`)
-}
+- Use strict TypeScript and explicit return types for public functions.
+- Prefer interfaces for shared object shapes.
+- Use Vue Composition API with `<script setup lang="ts">`.
+- Put reusable stateful logic in `app/composables/`.
+- Use named exports for utilities and composables.
+- Use the `~/` alias for application imports.
+- Guard browser-only APIs with `import.meta.client` or `process.client`.
 
-try {
-  storedValue.value = JSON.parse(item)
-} catch (e) {
-  console.error(`Error parsing localStorage key "${key}"`, e)
-}
-```
+## Editing Rules
 
-### Styling (Tailwind CSS)
-
-- Use Tailwind utility classes in templates
-- Custom CSS in `<style scoped>` for print media queries
-- Use `process.client` guards for browser APIs
-
-```css
-@media print {
-  .dont-print {
-    display: none;
-  }
-  
-  .dont-break {
-    page-break-inside: avoid;
-  }
-}
-```
-
-### Project Structure
-
-```
-app/
-├── app.vue              # Root component
-├── components/          # Vue components (auto-imported)
-│   ├── Button.vue
-│   ├── PrintableInput.vue
-│   └── PrintHeader.vue
-├── composables/         # Reusable composition functions (auto-imported)
-│   └── useLocalStorage.ts
-├── utils/               # Utility functions (auto-imported)
-│   └── assignments.ts
-└── assets/
-    └── css/
-        └── main.css     # Global styles + Tailwind import
-```
-
-### Key Conventions
-
-1. **Auto-imports**: Nuxt auto-imports components, composables, and utils
-2. **TypeScript**: Strict mode enabled via Nuxt config
-3. **Client-only code**: Wrap browser APIs with `if (process.client)`
-4. **Base URL**: App deployed to `/generador-programas-vm/` (configured in nuxt.config.ts)
-5. **Local storage**: Use the `useLocalStorage` composable for persistence
+- Preserve existing naming, structure, and implementation patterns.
+- Keep changes narrowly scoped to the request.
+- Do not manually edit generated files in `docs/`; regenerate them.
+- Do not revert or overwrite unrelated working-tree changes.
