@@ -2,5 +2,15 @@
 import withNuxt from './.nuxt/eslint.config.mjs'
 
 export default withNuxt(
-  // Your custom configs here
+  {
+    name: 'project/generated-files',
+    ignores: [
+      '.nuxt/**',
+      '.output/**',
+      'coverage/**',
+      'docs/**',
+      'node_modules/**',
+      '*.tsbuildinfo',
+    ],
+  },
 )
