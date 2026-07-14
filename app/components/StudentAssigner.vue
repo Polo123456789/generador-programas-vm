@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import type { Assignment } from '~/utils/assingments'
+import { computed, nextTick, ref, useId, watch } from 'vue'
+import type { Assignment, AssignmentType } from '~/types/domain'
+
+type ModalState = 'closed' | 'student' | 'companion'
 
 interface Props {
   modelValue: Assignment
+  weekId: string
   weekDate: string
-  type: 'school' | 'reading'
-  needsCompanion: boolean
+  weekStart: string | null
+  type: AssignmentType
   buttonOnly?: boolean
 }
 
@@ -15,265 +18,366 @@ const emit = defineEmits<{
   'update:modelValue': [value: Assignment]
 }>()
 
-const { getStudentsSortedByLastAssignment, getCompanionsSorted, assignStudent, getStudentName } = useStudents()
+const {
+  assignSlot,
+  editSlotParticipant,
+  getCompanionsSorted,
+  getStudentName,
+  getStudentsSortedByLastAssignment,
+} = useAppStore()
 
-const showStudentModal = ref(false)
-const showCompanionModal = ref(false)
+const modalState = ref<ModalState>('closed')
 const selectedStudentId = ref<string | null>(null)
+const actionError = ref('')
+const dialog = ref<HTMLElement | null>(null)
+const previouslyFocused = ref<HTMLElement | null>(null)
+const dialogTitleId = useId()
+const dialogDescriptionId = useId()
+
+const focusableSelector = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
+
+const companionRequired = computed(() => props.modelValue.companionMode === 'sameGender')
 
 const studentsList = computed(() => {
-  const allStudents = getStudentsSortedByLastAssignment(props.type, props.weekDate)
-  // For reading assignments, only show male students
+  const candidates = getStudentsSortedByLastAssignment(
+    props.type,
+    props.weekId,
+    props.weekStart,
+    props.modelValue.id,
+  )
+
+  return props.type === 'reading'
+    ? candidates.filter(student => student.gender === 'M')
+    : candidates
+})
+
+const studentGroups = computed(() => {
   if (props.type === 'reading') {
-    return allStudents.filter(s => s.gender === 'M')
+    return [{
+      id: 'male-reading',
+      label: 'Varones',
+      headingClass: 'text-blue-700 border-blue-200',
+      emptyMessage: 'No hay estudiantes varones activos.',
+      students: studentsList.value,
+    }]
   }
-  return allStudents
-})
 
-// Split students by gender for school assignments
-const maleStudents = computed(() => {
-  return studentsList.value.filter(s => s.gender === 'M')
-})
-
-const femaleStudents = computed(() => {
-  return studentsList.value.filter(s => s.gender === 'F')
+  return [
+    {
+      id: 'male-school',
+      label: 'Masculinos',
+      headingClass: 'text-blue-700 border-blue-200',
+      emptyMessage: 'No hay estudiantes masculinos.',
+      students: studentsList.value.filter(student => student.gender === 'M'),
+    },
+    {
+      id: 'female-school',
+      label: 'Femeninos',
+      headingClass: 'text-pink-700 border-pink-200',
+      emptyMessage: 'No hay estudiantes femeninos.',
+      students: studentsList.value.filter(student => student.gender === 'F'),
+    },
+  ]
 })
 
 const companionsList = computed(() => {
   if (!selectedStudentId.value) return []
-  return getCompanionsSorted(selectedStudentId.value, props.weekDate, props.type)
+  return getCompanionsSorted(
+    selectedStudentId.value,
+    props.type,
+    props.weekId,
+    props.weekStart,
+    props.modelValue.id,
+  )
 })
+
+const selectedStudentName = computed(() => (
+  selectedStudentId.value ? getStudentName(selectedStudentId.value) : ''
+))
 
 const studentValue = computed({
   get: () => props.modelValue.student,
-  set: (value) => {
-    emit('update:modelValue', { ...props.modelValue, student: value })
-  }
+  set: (value: string) => {
+    const result = editSlotParticipant(props.modelValue.id, 'student', value)
+    if (result.ok) {
+      actionError.value = ''
+      emit('update:modelValue', result.value)
+    }
+    else {
+      actionError.value = result.error
+    }
+  },
 })
 
-function openStudentModal() {
-  showStudentModal.value = true
-}
-
-function closeStudentModal() {
-  showStudentModal.value = false
+function openStudentModal(): void {
+  actionError.value = ''
   selectedStudentId.value = null
+  if (import.meta.client && document.activeElement instanceof HTMLElement) {
+    previouslyFocused.value = document.activeElement
+  }
+  modalState.value = 'student'
 }
 
-function selectStudent(studentId: string) {
+function closeModal(): void {
+  modalState.value = 'closed'
+  selectedStudentId.value = null
+  actionError.value = ''
+}
+
+function assignSelection(studentId: string, companionId?: string): void {
+  const result = assignSlot(props.modelValue.id, studentId, companionId)
+  if (!result.ok) {
+    actionError.value = result.error
+    return
+  }
+
+  emit('update:modelValue', result.value)
+  closeModal()
+}
+
+function selectStudent(studentId: string): void {
+  actionError.value = ''
   selectedStudentId.value = studentId
 
-  if (!props.needsCompanion) {
-    // Assign directly without companion
-    const studentName = getStudentName(studentId)
-    assignStudent({
-      studentId,
-      assignmentType: props.type,
-      weekDate: props.weekDate,
-    })
-    emit('update:modelValue', { ...props.modelValue, student: studentName })
-    closeStudentModal()
-  } else {
-    // Open companion selection
-    showStudentModal.value = false
-    showCompanionModal.value = true
+  if (companionRequired.value) {
+    modalState.value = 'companion'
+    return
   }
+
+  assignSelection(studentId)
 }
 
-function closeCompanionModal() {
-  showCompanionModal.value = false
-  selectedStudentId.value = null
-}
-
-function goBackToStudentModal() {
-  showCompanionModal.value = false
-  showStudentModal.value = true
-}
-
-function selectCompanion(companionId: string) {
+function selectCompanion(companionId: string): void {
   if (!selectedStudentId.value) return
-  
-  const studentName = getStudentName(selectedStudentId.value)
-  const companionName = getStudentName(companionId)
-  
-  assignStudent({
-    studentId: selectedStudentId.value,
-    companionId,
-    assignmentType: props.type,
-    weekDate: props.weekDate,
-  })
-  
-  emit('update:modelValue', { 
-    ...props.modelValue, 
-    student: studentName,
-    assistant: companionName,
-  })
-  
-  closeCompanionModal()
+  assignSelection(selectedStudentId.value, companionId)
+}
+
+function goBackToStudents(): void {
+  actionError.value = ''
+  modalState.value = 'student'
 }
 
 function formatLastAssignment(date: string | null): string {
-  return date || 'Nunca'
+  return date ? `Última asignación: ${date}` : 'Sin asignaciones anteriores'
 }
 
 function formatLastTogether(date: string | null): string {
-  return date ? `Última vez juntos: ${date}` : 'Nunca juntos'
+  return date ? `Última vez juntos: ${date}` : 'Nunca han trabajado juntos'
 }
+
+function focusInitialControl(): void {
+  if (!import.meta.client) return
+  const firstControl = dialog.value?.querySelector<HTMLElement>(focusableSelector)
+  if (firstControl) firstControl.focus()
+  else dialog.value?.focus()
+}
+
+function restoreFocus(): void {
+  if (!import.meta.client) return
+  const target = previouslyFocused.value
+  previouslyFocused.value = null
+  if (target?.isConnected) target.focus()
+}
+
+function handleDialogKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeModal()
+    return
+  }
+
+  if (event.key !== 'Tab' || !dialog.value) return
+  const controls = [...dialog.value.querySelectorAll<HTMLElement>(focusableSelector)]
+  if (controls.length === 0) {
+    event.preventDefault()
+    dialog.value.focus()
+    return
+  }
+
+  const activeIndex = controls.indexOf(document.activeElement as HTMLElement)
+  if (event.shiftKey && activeIndex <= 0) {
+    event.preventDefault()
+    controls.at(-1)?.focus()
+  }
+  else if (!event.shiftKey && (activeIndex === -1 || activeIndex === controls.length - 1)) {
+    event.preventDefault()
+    controls[0]?.focus()
+  }
+}
+
+watch(modalState, async (state) => {
+  await nextTick()
+  if (state === 'closed') restoreFocus()
+  else focusInitialControl()
+})
 </script>
 
 <template>
-  <div v-if="buttonOnly" class="flex gap-2 items-center">
+  <div v-if="buttonOnly" class="flex items-center gap-2">
     <button
-      @click="openStudentModal"
-      class="dont-print px-3 py-1 bg-amber-600 text-white text-sm rounded hover:bg-amber-700 whitespace-nowrap"
       type="button"
+      class="dont-print whitespace-nowrap rounded bg-amber-700 px-3 py-1 text-sm text-white hover:bg-amber-800"
+      :aria-label="`Asignar estudiante para ${modelValue.title || 'la asignación'}`"
+      @click="openStudentModal"
     >
       Asignar
     </button>
   </div>
-  <div v-else class="flex gap-2 items-center justify-between">
-    <PrintableInput v-model="studentValue" class="flex-1" />
+  <div v-else class="flex items-center justify-between gap-2">
+    <PrintableInput
+      v-model="studentValue"
+      class="flex-1"
+      :aria-label="`Estudiante para ${modelValue.title || 'la asignación'}`"
+    />
     <button
-      @click="openStudentModal"
-      class="dont-print px-3 py-1 bg-amber-600 text-white text-sm rounded hover:bg-amber-700 whitespace-nowrap"
       type="button"
+      class="dont-print whitespace-nowrap rounded bg-amber-700 px-3 py-1 text-sm text-white hover:bg-amber-800"
+      :aria-label="`Asignar estudiante para ${modelValue.title || 'la asignación'}`"
+      @click="openStudentModal"
     >
       Asignar
     </button>
   </div>
 
-  <!-- Student Selection Modal -->
-  <div v-if="showStudentModal" class="dont-print fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="closeStudentModal">
-    <div class="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-      <h3 class="text-lg font-bold mb-4">
-        Seleccionar Estudiante
-        <span v-if="type === 'reading'">- Lectura</span>
-        <span v-else>- Escuela</span>
-      </h3>
-      
-      <div v-if="studentsList.length === 0" class="text-gray-500 text-center py-4">
-        <span v-if="type === 'reading'">No hay estudiantes varones activos.</span>
-        <span v-else>No hay estudiantes activos.</span>
-        Añade estudiantes en la página de gestión.
-      </div>
+  <p
+    v-if="actionError && modalState === 'closed'"
+    class="dont-print mt-1 text-xs text-red-700"
+    role="alert"
+  >
+    {{ actionError }}
+  </p>
 
-      <!-- Single column for reading (male only) -->
-      <div v-else-if="type === 'reading'" class="space-y-2 max-w-md mx-auto">
-        <h4 class="font-semibold mb-2 text-blue-700 border-b border-blue-200 pb-1">Varones</h4>
-        <div
-          v-for="(student, index) in studentsList"
-          :key="student.id"
-          @click="selectStudent(student.id)"
-          class="p-3 border rounded cursor-pointer hover:bg-amber-50 transition-colors"
-          :class="{ 'bg-amber-100 border-amber-500': index === 0 }"
-        >
-          <div class="flex justify-between items-center">
-            <span class="font-medium">{{ student.name }}</span>
-            <span class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">M</span>
-          </div>
-          <div class="text-sm text-gray-600 mt-1">
-            Última asignación: {{ formatLastAssignment(student.lastAssignmentDate) }}
-          </div>
-          <div v-if="index === 0" class="text-xs text-amber-700 mt-1 font-medium">
-            Recomendación del sistema
-          </div>
-        </div>
-      </div>
-      
-      <!-- Two columns for school -->
-      <div v-else class="grid grid-cols-2 gap-4">
-        <!-- Male students -->
-        <div>
-          <h4 class="font-semibold mb-2 text-blue-700 border-b border-blue-200 pb-1">Masculinos</h4>
-          <div v-if="maleStudents.length === 0" class="text-gray-400 text-sm">
-            No hay estudiantes masculinos
-          </div>
-          <div v-else class="space-y-2">
-            <div
-              v-for="(student, index) in maleStudents"
-              :key="student.id"
-              @click="selectStudent(student.id)"
-              class="p-2 border rounded cursor-pointer hover:bg-amber-50 transition-colors text-sm"
-              :class="{ 'bg-amber-100 border-amber-500': index === 0 }"
-            >
-              <div class="font-medium">{{ student.name }}</div>
-              <div class="text-xs text-gray-600">
-                {{ formatLastAssignment(student.lastAssignmentDate) }}
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Female students -->
-        <div>
-          <h4 class="font-semibold mb-2 text-pink-700 border-b border-pink-200 pb-1">Femeninos</h4>
-          <div v-if="femaleStudents.length === 0" class="text-gray-400 text-sm">
-            No hay estudiantes femeninos
-          </div>
-          <div v-else class="space-y-2">
-            <div
-              v-for="(student, index) in femaleStudents"
-              :key="student.id"
-              @click="selectStudent(student.id)"
-              class="p-2 border rounded cursor-pointer hover:bg-amber-50 transition-colors text-sm"
-              :class="{ 'bg-amber-100 border-amber-500': index === 0 }"
-            >
-              <div class="font-medium">{{ student.name }}</div>
-              <div class="text-xs text-gray-600">
-                {{ formatLastAssignment(student.lastAssignmentDate) }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="mt-4 flex justify-end">
-        <Button @click="closeStudentModal">Cancelar</Button>
-      </div>
-    </div>
-  </div>
+  <Teleport to="body">
+    <div
+      v-if="modalState !== 'closed'"
+      class="dont-print fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click.self="closeModal"
+    >
+      <section
+        ref="dialog"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="dialogTitleId"
+        :aria-describedby="dialogDescriptionId"
+        class="mx-4 max-h-[80vh] w-full overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:p-6"
+        :class="modalState === 'student' ? 'max-w-4xl' : 'max-w-md'"
+        tabindex="-1"
+        @keydown="handleDialogKeydown"
+      >
+        <template v-if="modalState === 'student'">
+          <h3 :id="dialogTitleId" class="text-lg font-bold">
+            Seleccionar estudiante - {{ type === 'reading' ? 'Lectura' : 'Escuela' }}
+          </h3>
+          <p :id="dialogDescriptionId" class="mb-4 text-sm text-gray-600">
+            Semana: {{ weekDate }}
+          </p>
 
-  <!-- Companion Selection Modal -->
-  <div v-if="showCompanionModal" class="dont-print fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="closeCompanionModal">
-    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
-      <h3 class="text-lg font-bold mb-4">
-        Seleccionar Compañero para {{ getStudentName(selectedStudentId || '') }}
-      </h3>
-      
-      <div v-if="companionsList.length === 0" class="text-gray-500 text-center py-4">
-        No hay compañeros disponibles del mismo género.
-      </div>
-      
-      <div v-else class="space-y-2">
-        <div
-          v-for="(companion, index) in companionsList"
-          :key="companion.id"
-          @click="selectCompanion(companion.id)"
-          class="p-3 border rounded cursor-pointer hover:bg-amber-50 transition-colors"
-          :class="{ 'bg-amber-100 border-amber-500': index === 0 }"
-        >
-          <div class="flex justify-between items-center">
-            <span class="font-medium">{{ companion.name }}</span>
-            <span class="text-xs px-2 py-1 rounded" :class="companion.gender === 'M' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'">
-              {{ companion.gender }}
-            </span>
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2" :class="{ 'sm:grid-cols-1 sm:max-w-md sm:mx-auto': type === 'reading' }">
+            <section v-for="group in studentGroups" :key="group.id">
+              <h4 class="mb-2 border-b pb-1 font-semibold" :class="group.headingClass">
+                {{ group.label }}
+              </h4>
+              <p v-if="group.students.length === 0" class="py-4 text-center text-sm text-gray-500">
+                {{ group.emptyMessage }} Añade estudiantes en la página de gestión.
+              </p>
+              <div v-else class="space-y-2">
+                <button
+                  v-for="(student, index) in group.students"
+                  :key="student.id"
+                  type="button"
+                  class="w-full rounded border p-3 text-left transition-colors hover:bg-amber-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+                  :class="{ 'border-amber-500 bg-amber-100': index === 0 }"
+                  @click="selectStudent(student.id)"
+                >
+                  <span class="flex items-center justify-between gap-2">
+                    <span class="font-medium">{{ student.name }}</span>
+                    <span
+                      class="rounded px-2 py-1 text-xs"
+                      :class="student.gender === 'M' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'"
+                    >
+                      {{ student.gender }}
+                    </span>
+                  </span>
+                  <span class="mt-1 block text-sm text-gray-600">
+                    {{ formatLastAssignment(student.lastAssignmentDate) }}
+                  </span>
+                  <span v-if="student.assignedThisWeek" class="mt-1 block text-xs font-medium text-orange-700">
+                    Ya tiene una asignación esta semana
+                  </span>
+                  <span v-else-if="index === 0" class="mt-1 block text-xs font-medium text-amber-700">
+                    Recomendación del sistema
+                  </span>
+                </button>
+              </div>
+            </section>
           </div>
-          <div class="text-sm text-gray-600 mt-1">
-            {{ formatLastTogether(companion.lastTimeTogether) }}
+        </template>
+
+        <template v-else>
+          <h3 :id="dialogTitleId" class="text-lg font-bold">
+            Seleccionar compañero para {{ selectedStudentName }}
+          </h3>
+          <p :id="dialogDescriptionId" class="mb-4 text-sm text-gray-600">
+            Semana: {{ weekDate }}
+          </p>
+
+          <p v-if="companionsList.length === 0" class="py-4 text-center text-gray-500">
+            No hay compañeros disponibles del mismo género.
+          </p>
+          <div v-else class="space-y-2">
+            <button
+              v-for="(companion, index) in companionsList"
+              :key="companion.id"
+              type="button"
+              class="w-full rounded border p-3 text-left transition-colors hover:bg-amber-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+              :class="{ 'border-amber-500 bg-amber-100': index === 0 }"
+              @click="selectCompanion(companion.id)"
+            >
+              <span class="flex items-center justify-between gap-2">
+                <span class="font-medium">{{ companion.name }}</span>
+                <span
+                  class="rounded px-2 py-1 text-xs"
+                  :class="companion.gender === 'M' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'"
+                >
+                  {{ companion.gender }}
+                </span>
+              </span>
+              <span class="mt-1 block text-sm text-gray-600">
+                {{ formatLastTogether(companion.lastTimeTogether) }}
+              </span>
+              <span class="mt-1 block text-xs text-gray-500">
+                {{ formatLastAssignment(companion.lastAssignmentDate) }}
+              </span>
+              <span v-if="companion.assignedThisWeek" class="mt-1 block text-xs font-medium text-orange-700">
+                Ya tiene una asignación esta semana
+              </span>
+              <span v-else-if="index === 0" class="mt-1 block text-xs font-medium text-amber-700">
+                Recomendación del sistema
+              </span>
+            </button>
           </div>
-          <div class="text-xs text-gray-500 mt-1">
-            Última asignación: {{ formatLastAssignment(companion.lastAssignmentDate) }}
-          </div>
-          <div v-if="index === 0" class="text-xs text-amber-700 mt-1 font-medium">
-            Recomendación del sistema
-          </div>
+        </template>
+
+        <p v-if="actionError" role="alert" class="mt-4 text-sm text-red-700">
+          {{ actionError }}
+        </p>
+
+        <div class="mt-4 flex justify-end gap-2">
+          <AppButton v-if="modalState === 'companion'" type="button" @click="goBackToStudents">
+            Volver
+          </AppButton>
+          <AppButton type="button" @click="closeModal">
+            Cancelar
+          </AppButton>
         </div>
-      </div>
-      
-      <div class="mt-4 flex justify-end gap-2">
-        <Button @click="goBackToStudentModal">Volver</Button>
-        <Button @click="closeCompanionModal">Cancelar</Button>
-      </div>
+      </section>
     </div>
-  </div>
+  </Teleport>
 </template>

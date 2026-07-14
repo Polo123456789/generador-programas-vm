@@ -5,6 +5,10 @@
 .nitro
 .cache
 dist
+*.tsbuildinfo
+
+# Test output
+coverage
 
 # Node dependencies
 node_modules
