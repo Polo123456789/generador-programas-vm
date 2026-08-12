@@ -8,6 +8,7 @@ interface Props {
   modelValue: string | null
   companionValue?: string | null
   needsCompanion?: boolean
+  canChooseStudentCount?: boolean
   role: ParticipantRole
   weekDate: string
   programId: string
@@ -21,15 +22,18 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   companionValue: null,
   needsCompanion: false,
+  canChooseStudentCount: false,
 })
 const emit = defineEmits<{
   'update:modelValue': [value: string | null]
   'update:companionValue': [value: string | null]
+  'update:needsCompanion': [value: boolean]
 }>()
 
 const { assignmentHistory, getParticipantName, participants } = useParticipants()
 const phase = ref<'primary' | 'companion' | null>(null)
 const selectedPrimaryId = ref<string | null>(null)
+const selectedNeedsCompanion = ref(false)
 const dialog = ref<HTMLElement | null>(null)
 const triggerButton = ref<HTMLButtonElement | null>(null)
 
@@ -61,7 +65,7 @@ const modalTitle = computed(() => {
   if (phase.value === 'companion') {
     return `Elige al estudiante que acompañará a ${getParticipantName(selectedPrimaryId.value)}`
   }
-  if (props.needsCompanion) return 'Elige al conductor'
+  if (selectedNeedsCompanion.value) return 'Elige al conductor'
   if (props.role === 'president') return 'Elige al presidente'
   if (props.role === 'bookConductor') return 'Elige al conductor'
   if (props.role === 'bookReader') return 'Elige al lector'
@@ -77,6 +81,7 @@ watch(phase, async (currentPhase) => {
 
 function open(): void {
   selectedPrimaryId.value = props.modelValue
+  selectedNeedsCompanion.value = props.needsCompanion
   phase.value = 'primary'
 }
 
@@ -87,13 +92,14 @@ function close(): void {
 }
 
 function selectPrimary(participantId: string): void {
-  if (props.needsCompanion) {
+  if (selectedNeedsCompanion.value) {
     selectedPrimaryId.value = participantId
     phase.value = 'companion'
     return
   }
 
   emit('update:modelValue', participantId)
+  if (props.canChooseStudentCount) emit('update:needsCompanion', false)
   close()
 }
 
@@ -101,6 +107,7 @@ function selectCompanion(participantId: string): void {
   if (!selectedPrimaryId.value) return
   emit('update:modelValue', selectedPrimaryId.value)
   emit('update:companionValue', participantId)
+  if (props.canChooseStudentCount) emit('update:needsCompanion', true)
   close()
 }
 
@@ -227,6 +234,33 @@ function trapFocus(event: KeyboardEvent): void {
 
         <div class="overflow-y-auto px-5 py-5 sm:px-6">
           <template v-if="phase === 'primary'">
+            <fieldset v-if="canChooseStudentCount" class="mx-auto mb-5 max-w-xl rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <legend class="px-1 text-sm font-bold text-gray-950">¿Cuántos estudiantes participan?</legend>
+              <div class="mt-1 grid grid-cols-2 gap-2" role="group" aria-label="Cantidad de estudiantes">
+                <button
+                  type="button"
+                  :aria-pressed="!selectedNeedsCompanion"
+                  class="rounded-lg border px-3 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  :class="!selectedNeedsCompanion ? 'border-amber-600 bg-amber-600 text-white' : 'border-gray-300 bg-white text-gray-800 hover:bg-gray-50'"
+                  @click="selectedNeedsCompanion = false"
+                >
+                  1 estudiante
+                </button>
+                <button
+                  type="button"
+                  :aria-pressed="selectedNeedsCompanion"
+                  class="rounded-lg border px-3 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  :class="selectedNeedsCompanion ? 'border-amber-600 bg-amber-600 text-white' : 'border-gray-300 bg-white text-gray-800 hover:bg-gray-50'"
+                  @click="selectedNeedsCompanion = true"
+                >
+                  2 estudiantes
+                </button>
+              </div>
+              <p class="mt-2 text-xs text-gray-600">
+                La opción inicial se detecta automáticamente al cargar el programa.
+              </p>
+            </fieldset>
+
             <p v-if="candidates.length === 0" class="py-10 text-center text-gray-500">
               No hay participantes disponibles. Revisa el padrón y sus aptitudes.
             </p>

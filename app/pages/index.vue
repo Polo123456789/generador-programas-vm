@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { fetchAssignments } from '~/utils/assignments'
+import type { SchoolAssignment, SchoolStudentCount } from '~/utils/assignments'
+import { fetchAssignments, getSchoolStudentCount, setSchoolStudentCount } from '~/utils/assignments'
 import type { SanityFinding } from '~/utils/sanity'
 import { runSanityChecks } from '~/utils/sanity'
 import { extractCalendarYear, getWeekCalendarOrder } from '~/utils/weekDates'
@@ -57,6 +58,13 @@ function findingsForSlots(...slotKeys: string[]): SanityFinding[] {
   return sanityFindings.value.filter(finding => (
     finding.slotKeys.some(slotKey => targetSlots.has(slotKey))
   ))
+}
+
+function updateSchoolStudentCount(
+  assignment: SchoolAssignment,
+  studentCount: SchoolStudentCount,
+): void {
+  setSchoolStudentCount(assignment, studentCount)
 }
 
 watch(program, (currentProgram) => {
@@ -197,40 +205,28 @@ async function fetchAllAssignments(): Promise<void> {
                   )"
                 />
               </td>
-              <template v-if="assignment.studentId !== undefined">
-                <td class="pr-2 text-right align-middle whitespace-nowrap">Conductor / Estudiante:</td>
-                <td colspan="2" class="align-middle">
-                  <StudentAssigner
-                    v-model="assignment.conductorId"
-                    v-model:companion-value="assignment.studentId"
-                    role="school"
-                    needs-companion
-                    :week-date="week.date"
-                    :program-id="program.id"
-                    :calendar-order="calendarOrderForWeek(weekIndex)"
-                    :chronological-order="program.createdAt + weekIndex"
-                    :slot-key="`${weekIndex}:school:${assignmentIndex}`"
-                    :assignment-title="assignment.title"
-                    :accessible-name="`Conductor de ${assignment.title}, ${week.date}`"
-                  />
-                </td>
-              </template>
-              <template v-else>
-                <td class="pr-2 text-right align-middle whitespace-nowrap">Estudiante:</td>
-                <td colspan="2">
-                  <StudentAssigner
-                    v-model="assignment.conductorId"
-                    role="school"
-                    :week-date="week.date"
-                    :program-id="program.id"
-                    :calendar-order="calendarOrderForWeek(weekIndex)"
-                    :chronological-order="program.createdAt + weekIndex"
-                    :slot-key="`${weekIndex}:school:${assignmentIndex}:conductor`"
-                    :assignment-title="assignment.title"
-                    :accessible-name="`${assignment.title}, ${week.date}`"
-                  />
-                </td>
-              </template>
+              <td class="pr-2 text-right align-middle whitespace-nowrap">
+                {{ getSchoolStudentCount(assignment) === 2 ? 'Conductor / Estudiante:' : 'Estudiante:' }}
+              </td>
+              <td colspan="2" class="align-middle">
+                <StudentAssigner
+                  v-model="assignment.conductorId"
+                  v-model:companion-value="assignment.studentId"
+                  role="school"
+                  can-choose-student-count
+                  :needs-companion="getSchoolStudentCount(assignment) === 2"
+                  :week-date="week.date"
+                  :program-id="program.id"
+                  :calendar-order="calendarOrderForWeek(weekIndex)"
+                  :chronological-order="program.createdAt + weekIndex"
+                  :slot-key="getSchoolStudentCount(assignment) === 2
+                    ? `${weekIndex}:school:${assignmentIndex}`
+                    : `${weekIndex}:school:${assignmentIndex}:conductor`"
+                  :assignment-title="assignment.title"
+                  :accessible-name="`${assignment.title}, ${week.date}`"
+                  @update:needs-companion="updateSchoolStudentCount(assignment, $event ? 2 : 1)"
+                />
+              </td>
             </tr>
 
             <tr><td class="mt-2 bg-red-800 p-1 font-bold text-white">NUESTRA VIDA CRISTIANA</td></tr>

@@ -34,6 +34,8 @@ export interface SchoolAssignment {
   studentId?: string | null
 }
 
+export type SchoolStudentCount = 1 | 2
+
 export interface ProgramWeek {
   date: string
   songs: number[]
@@ -95,7 +97,7 @@ export async function fetchAssignments(url: string): Promise<ProgramWeek[]> {
         title: assignment.title,
         duration: assignment.duration,
         conductorId: null,
-        studentId: assignment.title === 'Discurso' ? undefined : null,
+        studentId: inferSchoolStudentCount(assignment.title) === 1 ? undefined : null,
       })),
       livingSpeeches: scraped.livingSpeeches.map(assignment => ({
         ...assignment,
@@ -108,6 +110,26 @@ export async function fetchAssignments(url: string): Promise<ProgramWeek[]> {
   }
 
   return results
+}
+
+export function inferSchoolStudentCount(title: string): SchoolStudentCount {
+  return title.trim().toLocaleLowerCase('es') === 'discurso' ? 1 : 2
+}
+
+export function getSchoolStudentCount(assignment: SchoolAssignment): SchoolStudentCount {
+  return assignment.studentId === undefined ? 1 : 2
+}
+
+export function setSchoolStudentCount(
+  assignment: SchoolAssignment,
+  studentCount: SchoolStudentCount,
+): void {
+  if (studentCount === 1) {
+    delete assignment.studentId
+    return
+  }
+
+  if (assignment.studentId === undefined) assignment.studentId = null
 }
 
 function titleCase(value: string): string {
