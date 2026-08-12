@@ -27,6 +27,7 @@ export interface AssignmentHistoryRecord {
   assignmentRole: ParticipantRole | 'legacyReading' | 'legacySchool'
   assignmentTitle: string
   weekDate: string
+  calendarOrder?: number
   chronologicalOrder?: number
   updatedAt: number
 }

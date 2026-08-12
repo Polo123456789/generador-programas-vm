@@ -1,0 +1,302 @@
+<script setup lang="ts">
+import { computed, nextTick, ref, watch } from 'vue'
+import type { ParticipantRole } from '~/utils/participants'
+import type { ParticipantRecommendation } from '~/utils/participantRecommendations'
+import { rankParticipants, rankPartners } from '~/utils/participantRecommendations'
+
+interface Props {
+  modelValue: string | null
+  companionValue?: string | null
+  needsCompanion?: boolean
+  role: ParticipantRole
+  weekDate: string
+  programId: string
+  calendarOrder: number
+  chronologicalOrder: number
+  slotKey: string
+  assignmentTitle: string
+  accessibleName: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  companionValue: null,
+  needsCompanion: false,
+})
+const emit = defineEmits<{
+  'update:modelValue': [value: string | null]
+  'update:companionValue': [value: string | null]
+}>()
+
+const { assignmentHistory, getParticipantName, participants } = useParticipants()
+const phase = ref<'primary' | 'companion' | null>(null)
+const selectedPrimaryId = ref<string | null>(null)
+const dialog = ref<HTMLElement | null>(null)
+const triggerButton = ref<HTMLButtonElement | null>(null)
+
+const candidates = computed(() => rankParticipants({
+  participants: participants.value,
+  history: assignmentHistory.value,
+  role: props.role,
+  targetWeekDate: props.weekDate,
+  targetProgramId: props.programId,
+  targetCalendarOrder: props.calendarOrder,
+  targetChronologicalOrder: props.chronologicalOrder,
+  targetSlotKey: props.slotKey,
+}))
+const companions = computed(() => selectedPrimaryId.value
+  ? rankPartners({
+      participants: participants.value,
+      history: assignmentHistory.value,
+      primaryId: selectedPrimaryId.value,
+      role: props.role,
+      targetWeekDate: props.weekDate,
+      targetProgramId: props.programId,
+      targetCalendarOrder: props.calendarOrder,
+      targetChronologicalOrder: props.chronologicalOrder,
+      targetSlotKey: props.slotKey,
+    })
+  : [])
+const hasAssignment = computed(() => Boolean(props.modelValue || props.companionValue))
+const modalTitle = computed(() => {
+  if (phase.value === 'companion') {
+    return `Elige al estudiante que acompañará a ${getParticipantName(selectedPrimaryId.value)}`
+  }
+  if (props.needsCompanion) return 'Elige al conductor'
+  if (props.role === 'president') return 'Elige al presidente'
+  if (props.role === 'bookConductor') return 'Elige al conductor'
+  if (props.role === 'bookReader') return 'Elige al lector'
+  if (props.role === 'reading' || props.role === 'school') return 'Elige al estudiante'
+  return 'Elige al participante'
+})
+
+watch(phase, async (currentPhase) => {
+  if (!currentPhase) return
+  await nextTick()
+  dialog.value?.focus()
+})
+
+function open(): void {
+  selectedPrimaryId.value = props.modelValue
+  phase.value = 'primary'
+}
+
+function close(): void {
+  phase.value = null
+  selectedPrimaryId.value = null
+  void nextTick(() => triggerButton.value?.focus())
+}
+
+function selectPrimary(participantId: string): void {
+  if (props.needsCompanion) {
+    selectedPrimaryId.value = participantId
+    phase.value = 'companion'
+    return
+  }
+
+  emit('update:modelValue', participantId)
+  close()
+}
+
+function selectCompanion(participantId: string): void {
+  if (!selectedPrimaryId.value) return
+  emit('update:modelValue', selectedPrimaryId.value)
+  emit('update:companionValue', participantId)
+  close()
+}
+
+function clearAssignment(): void {
+  emit('update:modelValue', null)
+  if (props.needsCompanion) emit('update:companionValue', null)
+  close()
+}
+
+function primaryLabel(): string {
+  return getParticipantName(props.modelValue) || 'Sin asignar'
+}
+
+function companionLabel(): string {
+  return getParticipantName(props.companionValue) || 'Sin asignar'
+}
+
+function assignmentHistoryLabel(candidate: ParticipantRecommendation): string {
+  return candidate.lastAssignmentDate
+    ? `Última participación: ${candidate.lastAssignmentDate}`
+    : 'Nunca ha participado en este cargo'
+}
+
+function togetherHistoryLabel(candidate: ParticipantRecommendation): string {
+  return candidate.lastTimeTogether
+    ? `Última vez juntos: ${candidate.lastTimeTogether}`
+    : 'Nunca han participado juntos'
+}
+
+function triggerAccessibleName(): string {
+  return `${hasAssignment.value ? 'Cambiar' : 'Elegir'}: ${props.accessibleName}`
+}
+
+function trapFocus(event: KeyboardEvent): void {
+  if (!dialog.value) return
+  const focusable = [...dialog.value.querySelectorAll<HTMLElement>(
+    'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  )].filter(element => element.getClientRects().length > 0)
+  if (focusable.length === 0) {
+    event.preventDefault()
+    dialog.value.focus()
+    return
+  }
+
+  const first = focusable[0]!
+  const last = focusable[focusable.length - 1]!
+  if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.value)) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+</script>
+
+<template>
+  <div class="dont-print flex min-w-0 items-center gap-2">
+    <div
+      class="min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm"
+    >
+      <template v-if="needsCompanion">
+        <span class="font-medium">{{ primaryLabel() }}</span>
+        <span class="px-1 text-gray-400" aria-hidden="true">/</span>
+        <span class="font-medium">{{ companionLabel() }}</span>
+      </template>
+      <span v-else class="block truncate font-medium" :title="primaryLabel()">{{ primaryLabel() }}</span>
+    </div>
+    <button
+      ref="triggerButton"
+      type="button"
+      :aria-label="triggerAccessibleName()"
+      class="shrink-0 rounded-md bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+      @click="open"
+    >
+      {{ hasAssignment ? 'Cambiar' : 'Elegir' }}
+    </button>
+  </div>
+
+  <span class="only-print">
+    {{ primaryLabel() }}<template v-if="needsCompanion"> / {{ companionLabel() }}</template>
+  </span>
+
+  <Teleport to="body">
+    <div
+      v-if="phase"
+      class="dont-print fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6"
+      @click.self="close"
+      @keydown.esc="close"
+    >
+      <section
+        ref="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="student-assigner-title"
+        tabindex="-1"
+        class="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        @keydown.tab="trapFocus"
+      >
+        <header class="border-b border-gray-200 px-5 py-4 sm:px-6">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="text-sm font-semibold text-amber-700">{{ assignmentTitle }} · {{ weekDate }}</p>
+              <h2 id="student-assigner-title" class="mt-1 text-xl font-bold text-gray-950">{{ modalTitle }}</h2>
+              <p class="mt-1 text-sm text-gray-600">
+                <template v-if="phase === 'companion'">
+                  Primero aparecen quienes llevan más tiempo sin participar con esta persona.
+                </template>
+                <template v-else>
+                  Primero aparecen quienes llevan más tiempo sin participar en este cargo.
+                </template>
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="Cerrar selector"
+              class="rounded-full p-2 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              @click="close"
+            >
+              ×
+            </button>
+          </div>
+        </header>
+
+        <div class="overflow-y-auto px-5 py-5 sm:px-6">
+          <template v-if="phase === 'primary'">
+            <p v-if="candidates.length === 0" class="py-10 text-center text-gray-500">
+              No hay participantes disponibles. Revisa el padrón y sus aptitudes.
+            </p>
+
+            <div v-else class="mx-auto max-w-xl">
+              <CandidateGroup
+                :candidates="candidates"
+                :label="role === 'school' ? 'Estudiantes disponibles' : 'Participantes disponibles'"
+                tone="blue"
+                :empty-history-label="role === 'school' ? 'Nunca ha participado en esta parte' : 'Nunca ha participado en este cargo'"
+                @select="selectPrimary"
+              />
+            </div>
+          </template>
+
+          <div v-else class="mx-auto max-w-xl">
+            <p v-if="companions.length === 0" class="py-10 text-center text-gray-500">
+              No hay estudiantes disponibles del mismo género.
+            </p>
+            <div v-else class="space-y-2">
+              <button
+                v-for="(candidate, index) in companions"
+                :key="candidate.participant.id"
+                type="button"
+                class="w-full rounded-xl border p-4 text-left transition hover:border-amber-400 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                :class="index === 0 ? 'border-amber-400 bg-amber-50' : 'border-gray-200 bg-white'"
+                @click="selectCompanion(candidate.participant.id)"
+              >
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="font-semibold text-gray-950">{{ candidate.participant.name }}</span>
+                  <span v-if="index === 0" class="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-900">
+                    Recomendado
+                  </span>
+                </div>
+                <p class="mt-1 text-sm font-medium text-gray-700">{{ togetherHistoryLabel(candidate) }}</p>
+                <p class="mt-0.5 text-xs text-gray-500">{{ assignmentHistoryLabel(candidate) }}</p>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-5 py-4 sm:px-6">
+          <button
+            v-if="hasAssignment"
+            type="button"
+            class="text-sm font-semibold text-red-700 hover:text-red-900"
+            @click="clearAssignment"
+          >
+            Quitar asignación
+          </button>
+          <span v-else />
+          <div class="flex gap-2">
+            <button
+              v-if="phase === 'companion'"
+              type="button"
+              class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-100"
+              @click="phase = 'primary'"
+            >
+              Volver
+            </button>
+            <button
+              type="button"
+              class="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700"
+              @click="close"
+            >
+              Cancelar
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  </Teleport>
+</template>

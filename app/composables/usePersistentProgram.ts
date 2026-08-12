@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import { onScopeDispose, ref, watch } from 'vue'
 import type { MeetingProgram, ProgramWeek } from '~/utils/assignments'
 import { createMeetingProgram } from '~/utils/assignments'
+import { resolveCalendarYear } from '~/utils/weekDates'
 
 interface ProgramStorageMeta {
   bytes: number
@@ -37,12 +38,26 @@ export function usePersistentProgram() {
     try {
       const parsed = JSON.parse(rawValue) as Partial<MeetingProgram>
       if (typeof parsed.id !== 'string' || !Array.isArray(parsed.weeks)) return null
+      const createdAt = typeof parsed.createdAt === 'number' ? parsed.createdAt : Date.now()
       return {
         ...parsed,
-        createdAt: typeof parsed.createdAt === 'number' ? parsed.createdAt : Date.now(),
+        createdAt,
+        calendarYear: resolveCalendarYear(parsed.calendarYear, readStoredSourceUrl(), createdAt),
       } as MeetingProgram
     } catch {
       return null
+    }
+  }
+
+  function readStoredSourceUrl(): string {
+    const rawValue = window.localStorage.getItem('lastAssignmentsURL')
+      ?? window.localStorage.getItem('lastAssingmentsURL')
+      ?? ''
+    try {
+      const parsed = JSON.parse(rawValue) as unknown
+      return typeof parsed === 'string' ? parsed : rawValue
+    } catch {
+      return rawValue
     }
   }
 
@@ -104,8 +119,8 @@ export function usePersistentProgram() {
     saveTimer = setTimeout(saveNow, AUTOSAVE_DELAY_MS)
   }
 
-  function replaceProgram(weeks: ProgramWeek[]): void {
-    program.value = createMeetingProgram(weeks)
+  function replaceProgram(weeks: ProgramWeek[], calendarYear: number): void {
+    program.value = createMeetingProgram(weeks, calendarYear)
     saveNow()
   }
 

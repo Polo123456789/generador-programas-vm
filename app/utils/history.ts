@@ -1,6 +1,7 @@
 import type { MeetingProgram } from './assignments'
 import type { AssignmentHistoryRecord } from './participants'
 import { getProgramSlots } from './programSlots'
+import { getWeekCalendarOrder } from './weekDates'
 
 export function buildProgramHistory(program: MeetingProgram): AssignmentHistoryRecord[] {
   const slots = getProgramSlots(program)
@@ -28,6 +29,7 @@ export function buildProgramHistory(program: MeetingProgram): AssignmentHistoryR
         assignmentRole: 'school',
         assignmentTitle: slot.assignmentTitle,
         weekDate: slot.weekDate,
+        calendarOrder: getWeekCalendarOrder(program.weeks, program.calendarYear, slot.weekIndex) ?? undefined,
         chronologicalOrder: program.createdAt + slot.weekIndex,
         updatedAt,
       })
@@ -42,6 +44,7 @@ export function buildProgramHistory(program: MeetingProgram): AssignmentHistoryR
       assignmentRole: slot.role,
       assignmentTitle: slot.assignmentTitle,
       weekDate: slot.weekDate,
+      calendarOrder: getWeekCalendarOrder(program.weeks, program.calendarYear, slot.weekIndex) ?? undefined,
       chronologicalOrder: program.createdAt + slot.weekIndex,
       updatedAt,
     })

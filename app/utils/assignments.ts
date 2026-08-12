@@ -52,13 +52,15 @@ export interface ProgramWeek {
 export interface MeetingProgram {
   id: string
   createdAt: number
+  calendarYear: number
   weeks: ProgramWeek[]
 }
 
-export function createMeetingProgram(weeks: ProgramWeek[]): MeetingProgram {
+export function createMeetingProgram(weeks: ProgramWeek[], calendarYear: number): MeetingProgram {
   return {
     id: generateId(),
     createdAt: Date.now(),
+    calendarYear,
     weeks,
   }
 }

@@ -25,6 +25,7 @@ export const checkEligibilityMismatch: SanityCheck = ({ program, participants })
       reason,
       weeks: [slot.weekDate],
       assignments: [slot.assignmentTitle],
+      slotKeys: [slot.key],
     }]
   })
 }

@@ -30,7 +30,7 @@ function week(date: string, school: SchoolAssignment[] = []): ProgramWeek {
 }
 
 function program(weeks: ProgramWeek[]): MeetingProgram {
-  return { id: 'program', createdAt: 1_000, weeks }
+  return { id: 'program', createdAt: 1_000, calendarYear: 2026, weeks }
 }
 
 describe('sanity checks', () => {
@@ -44,6 +44,26 @@ describe('sanity checks', () => {
     expect(findings.map(finding => finding.participantIds[0]).sort()).toEqual(['a', 'b'])
   })
 
+  test('same fixed role in adjacent weeks is reported', () => {
+    const first = week('Semana 1')
+    const second = week('Semana 2')
+    first.presidentId = 'a'
+    second.presidentId = 'a'
+
+    const findings = checkConsecutiveAssignments({
+      program: program([first, second]),
+      participants: [],
+    })
+
+    expect(findings).toHaveLength(1)
+    expect(findings[0]).toMatchObject({
+      participantIds: ['a'],
+      assignments: ['Presidente'],
+      weeks: ['Semana 1', 'Semana 2'],
+      slotKeys: ['0:president', '1:president'],
+    })
+  })
+
   test('role balance starts at three two-person assignments in one role', () => {
     const weeks = ['1', '2', '3'].map(date => week(date, [
       { title: 'Revisita', duration: 4, conductorId: 'a', studentId: 'b' },
@@ -52,13 +72,15 @@ describe('sanity checks', () => {
 
     expect(findings).toHaveLength(2)
     expect(findings[0]?.reason).toContain('3 participaciones')
+    expect(findings.every(finding => finding.slotKeys.length === 3)).toBe(true)
   })
 
   test('weekly load counts separate occupied slots', () => {
     const currentWeek = week('Semana 1')
     currentWeek.presidentId = 'a'
     currentWeek.finalPrayerId = 'a'
-    expect(checkWeeklyLoad({ program: program([currentWeek]), participants: [] })).toHaveLength(1)
+    expect(checkWeeklyLoad({ program: program([currentWeek]), participants: [] })[0]?.slotKeys)
+      .toEqual(['0:president', '0:finalPrayer'])
   })
 
   test('a repeated pair is unordered', () => {
@@ -70,6 +92,12 @@ describe('sanity checks', () => {
       participants: [],
     })
     expect(findings).toHaveLength(1)
+    expect(findings[0]?.slotKeys).toEqual([
+      '0:school:0:conductor',
+      '0:school:0:student',
+      '1:school:0:conductor',
+      '1:school:0:student',
+    ])
   })
 
   test('hidden or ineligible assignments remain present and are reported', () => {
@@ -78,7 +106,7 @@ describe('sanity checks', () => {
     expect(checkEligibilityMismatch({
       program: program([currentWeek]),
       participants: [participant('a', ['school'])],
-    })).toHaveLength(1)
+    })[0]?.slotKeys).toEqual(['0:president'])
   })
 
   test('frequency rules stay quiet before eight weeks', () => {

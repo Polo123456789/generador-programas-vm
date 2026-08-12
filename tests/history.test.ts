@@ -6,6 +6,7 @@ test('program history stores a two-person assignment once in role order', () => 
   const program: MeetingProgram = {
     id: 'program',
     createdAt: 1_000,
+    calendarYear: 2026,
     weeks: [{
       date: 'Semana',
       songs: [1, 2, 3],
@@ -44,6 +45,7 @@ test('program history gives later weeks a stable chronological order', () => {
   const history = buildProgramHistory({
     id: 'program',
     createdAt: 5_000,
+    calendarYear: 2026,
     weeks: [
       { ...baseWeek, date: 'Semana 1' },
       { ...baseWeek, date: 'Semana 2' },
@@ -51,4 +53,28 @@ test('program history gives later weeks a stable chronological order', () => {
   })
 
   expect(history[1]!.chronologicalOrder).toBeGreaterThan(history[0]!.chronologicalOrder!)
+})
+
+test('program history stores the meeting date independently from the import date', () => {
+  const history = buildProgramHistory({
+    id: 'program',
+    createdAt: Date.UTC(2027, 0, 1),
+    calendarYear: 2026,
+    weeks: [{
+      date: '17-23 De Agosto',
+      songs: [1, 2, 3],
+      presidentId: 'a',
+      assignedReading: '',
+      treasures: { title: 'Tesoros', duration: 10, participantId: null },
+      gems: { title: 'Perlas', duration: 10, participantId: null },
+      reading: { title: 'Lectura', duration: 4, participantId: null },
+      school: [],
+      livingSpeeches: [],
+      bookConductorId: null,
+      bookReaderId: null,
+      finalPrayerId: null,
+    }],
+  })
+
+  expect(history[0]?.calendarOrder).toBe(Date.UTC(2026, 7, 17))
 })

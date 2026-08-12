@@ -2,6 +2,7 @@ import type { MeetingProgram, ProgramWeek, SchoolAssignment, SingleAssignment } 
 import type { AssignmentHistoryRecord, Participant, ParticipantRole } from './participants'
 import { PARTICIPANT_ROLES } from './participants'
 import { getProgramSlots } from './programSlots'
+import { inferWeekCalendarOrder, resolveCalendarYear } from './weekDates'
 
 export const BACKUP_VERSION = 1
 
@@ -86,7 +87,21 @@ export function parseBackup(raw: string): AppBackup {
     assertKnownParticipants(assignedIds, participantIds, 'el programa')
   }
 
-  return clone(value as unknown as AppBackup)
+  const backup = clone(value as unknown as AppBackup)
+  if (backup.program && !Number.isInteger(backup.program.calendarYear)) {
+    backup.program.calendarYear = resolveCalendarYear(
+      backup.program.calendarYear,
+      backup.sourceUrl,
+      backup.program.createdAt,
+    )
+  }
+  backup.assignmentHistory = backup.assignmentHistory.map(record => ({
+    ...record,
+    calendarOrder: record.calendarOrder
+      ?? inferWeekCalendarOrder(record.weekDate, record.updatedAt)
+      ?? undefined,
+  }))
+  return backup
 }
 
 export function summarizeBackup(backup: AppBackup): BackupSummary {
@@ -104,6 +119,10 @@ function isMeetingProgram(value: unknown): value is MeetingProgram {
     && typeof value.id === 'string'
     && typeof value.createdAt === 'number'
     && Number.isFinite(value.createdAt)
+    && (value.calendarYear === undefined || (
+      typeof value.calendarYear === 'number'
+      && Number.isInteger(value.calendarYear)
+    ))
     && Array.isArray(value.weeks)
     && value.weeks.every(isProgramWeek)
 }
@@ -167,6 +186,7 @@ function isHistoryRecord(value: unknown): value is AssignmentHistoryRecord {
     && (isParticipantRole(value.assignmentRole) || value.assignmentRole === 'legacyReading' || value.assignmentRole === 'legacySchool')
     && typeof value.assignmentTitle === 'string'
     && typeof value.weekDate === 'string'
+    && (value.calendarOrder === undefined || (typeof value.calendarOrder === 'number' && Number.isFinite(value.calendarOrder)))
     && (value.chronologicalOrder === undefined || (typeof value.chronologicalOrder === 'number' && Number.isFinite(value.chronologicalOrder)))
     && typeof value.updatedAt === 'number'
     && Number.isFinite(value.updatedAt)

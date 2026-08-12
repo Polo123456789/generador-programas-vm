@@ -1,54 +1,44 @@
+import type { ProgramSlot } from '../programSlots'
+import { getProgramSlots } from '../programSlots'
 import { normalizeAssignmentTitle } from './helpers'
 import type { SanityCheck, SanityFinding } from './types'
 
-interface StudentAssignment {
+interface ConsecutiveAssignment {
   participantId: string
-  normalizedTitle: string
+  identity: string
+  slotKey: string
   title: string
 }
 
 export const checkConsecutiveAssignments: SanityCheck = ({ program }) => {
-  const assignmentsByWeek = program.weeks.map((week): StudentAssignment[] => {
-    const assignments: StudentAssignment[] = []
-    if (week.reading.participantId) {
-      assignments.push({
-        participantId: week.reading.participantId,
-        normalizedTitle: 'lectura',
-        title: 'Lectura',
-      })
-    }
-
-    week.school.forEach((assignment) => {
-      const normalizedTitle = normalizeAssignmentTitle(assignment.title)
-      if (assignment.conductorId) {
-        assignments.push({
-          participantId: assignment.conductorId,
-          normalizedTitle,
-          title: assignment.title,
-        })
-      }
-      if (assignment.studentId) {
-        assignments.push({
-          participantId: assignment.studentId,
-          normalizedTitle,
-          title: assignment.title,
-        })
-      }
-    })
-    return assignments
-  })
+  const programSlots = getProgramSlots(program)
+  const assignmentsByWeek = program.weeks.map((_, weekIndex): ConsecutiveAssignment[] => (
+    programSlots
+      .filter(slot => slot.weekIndex === weekIndex && slot.participantId)
+      .map(slot => ({
+        participantId: slot.participantId!,
+        identity: assignmentIdentity(slot),
+        slotKey: slot.key,
+        title: slot.assignmentTitle,
+      }))
+  ))
 
   const findings: SanityFinding[] = []
   for (let weekIndex = 1; weekIndex < assignmentsByWeek.length; weekIndex += 1) {
     const previousWeek = assignmentsByWeek[weekIndex - 1] ?? []
     const currentWeek = assignmentsByWeek[weekIndex] ?? []
-    const previousKeys = new Set(
-      previousWeek.map(assignment => `${assignment.participantId}:${assignment.normalizedTitle}`),
-    )
+    const previousByKey = new Map<string, ConsecutiveAssignment[]>()
+    previousWeek.forEach((assignment) => {
+      const key = `${assignment.participantId}:${assignment.identity}`
+      const matchingAssignments = previousByKey.get(key) ?? []
+      matchingAssignments.push(assignment)
+      previousByKey.set(key, matchingAssignments)
+    })
 
     currentWeek.forEach((assignment) => {
-      const key = `${assignment.participantId}:${assignment.normalizedTitle}`
-      if (!previousKeys.has(key)) return
+      const key = `${assignment.participantId}:${assignment.identity}`
+      const previousAssignments = previousByKey.get(key)
+      if (!previousAssignments) return
 
       const weeks = [program.weeks[weekIndex - 1]!.date, program.weeks[weekIndex]!.date]
       findings.push({
@@ -58,9 +48,20 @@ export const checkConsecutiveAssignments: SanityCheck = ({ program }) => {
         reason: `Recibió ${assignment.title} en dos semanas consecutivas.`,
         weeks,
         assignments: [assignment.title],
+        slotKeys: [...new Set([
+          ...previousAssignments.map(previousAssignment => previousAssignment.slotKey),
+          assignment.slotKey,
+        ])],
       })
     })
   }
 
   return findings
+}
+
+function assignmentIdentity(slot: ProgramSlot): string {
+  if (slot.role === 'school' || slot.role === 'livingSpeech') {
+    return `${slot.role}:${normalizeAssignmentTitle(slot.assignmentTitle)}`
+  }
+  return slot.role
 }

@@ -37,6 +37,7 @@ export const checkHighFrequency: SanityCheck = (context) => {
       reason: `Tiene ${stats.observed} participaciones; según sus aptitudes, la referencia es ${formatExpected(stats.expected)}.`,
       weeks: [],
       assignments: [],
+      slotKeys: [],
     }]
   })
 }
@@ -60,6 +61,7 @@ export const checkLowFrequency: SanityCheck = (context) => {
       reason: `Tiene ${stats.observed} participaciones; según sus aptitudes, la referencia es ${formatExpected(stats.expected)}.`,
       weeks: [],
       assignments: [],
+      slotKeys: [],
     }]
   })
 }

@@ -17,6 +17,7 @@ export interface SanityFinding {
   reason: string
   weeks: string[]
   assignments: string[]
+  slotKeys: string[]
 }
 
 export interface SanityContext {

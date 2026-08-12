@@ -23,6 +23,7 @@ const participants: Participant[] = [
 const program: MeetingProgram = {
   id: 'programa-1',
   createdAt: 1234,
+  calendarYear: 2026,
   weeks: [{
     date: '7-13 de septiembre',
     songs: [1, 2, 3],
@@ -47,6 +48,7 @@ const assignmentHistory: AssignmentHistoryRecord[] = [{
   assignmentRole: 'school',
   assignmentTitle: 'Primera conversación',
   weekDate: '7-13 de septiembre',
+  calendarOrder: Date.UTC(2026, 8, 7),
   chronologicalOrder: 1234,
   updatedAt: 1234,
 }]
@@ -71,6 +73,14 @@ test('backup round trip preserves all application data', () => {
 test('backup parser rejects malformed or unsupported files', () => {
   expect(() => parseBackup('{no-json')).toThrow('JSON válido')
   expect(() => parseBackup(JSON.stringify({ version: 99 }))).toThrow('Versión de respaldo no compatible')
+})
+
+test('backup parser restores the calendar year in older backups', () => {
+  const backup = createBackup(program, participants, assignmentHistory, 'https://example.test/programa-2026/septiembre')
+  const legacyProgram = backup.program as Partial<MeetingProgram>
+  delete legacyProgram.calendarYear
+
+  expect(parseBackup(JSON.stringify(backup)).program?.calendarYear).toBe(2026)
 })
 
 test('backup parser rejects duplicate and unknown participant references', () => {

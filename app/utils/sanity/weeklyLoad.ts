@@ -2,13 +2,13 @@ import { getProgramSlots } from '../programSlots'
 import type { SanityCheck } from './types'
 
 export const checkWeeklyLoad: SanityCheck = ({ program }) => {
-  const groups = new Map<string, Array<{ title: string, week: string }>>()
+  const groups = new Map<string, Array<{ slotKey: string, title: string, week: string }>>()
 
   getProgramSlots(program).forEach((slot) => {
     if (!slot.participantId) return
     const key = `${slot.weekIndex}:${slot.participantId}`
     const assignments = groups.get(key) ?? []
-    assignments.push({ title: slot.assignmentTitle, week: slot.weekDate })
+    assignments.push({ slotKey: slot.key, title: slot.assignmentTitle, week: slot.weekDate })
     groups.set(key, assignments)
   })
 
@@ -22,6 +22,7 @@ export const checkWeeklyLoad: SanityCheck = ({ program }) => {
       reason: `Aparece en ${assignments.length} partes durante la misma semana.`,
       weeks: [assignments[0]!.week],
       assignments: assignments.map(assignment => assignment.title),
+      slotKeys: assignments.map(assignment => assignment.slotKey),
     }]
   })
 }

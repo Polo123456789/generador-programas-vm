@@ -1,16 +1,24 @@
 import type { SanityCheck } from './types'
 
-export const checkRoleBalance: SanityCheck = ({ program }) => {
-  const roles = new Map<string, Array<{ role: 'Conductor' | 'Estudiante', week: string, title: string }>>()
+interface RoleParticipation {
+  role: 'Conductor' | 'Estudiante'
+  slotKey: string
+  week: string
+  title: string
+}
 
-  program.weeks.forEach((week) => {
-    week.school.forEach((assignment) => {
+export const checkRoleBalance: SanityCheck = ({ program }) => {
+  const roles = new Map<string, RoleParticipation[]>()
+
+  program.weeks.forEach((week, weekIndex) => {
+    week.school.forEach((assignment, assignmentIndex) => {
       if (assignment.studentId === undefined) return
+      const slotPrefix = `${weekIndex}:school:${assignmentIndex}`
       if (assignment.conductorId) {
-        appendRole(roles, assignment.conductorId, 'Conductor', week.date, assignment.title)
+        appendRole(roles, assignment.conductorId, 'Conductor', `${slotPrefix}:conductor`, week.date, assignment.title)
       }
       if (assignment.studentId) {
-        appendRole(roles, assignment.studentId, 'Estudiante', week.date, assignment.title)
+        appendRole(roles, assignment.studentId, 'Estudiante', `${slotPrefix}:student`, week.date, assignment.title)
       }
     })
   })
@@ -28,18 +36,20 @@ export const checkRoleBalance: SanityCheck = ({ program }) => {
       reason: `Tiene ${participations.length} participaciones en partes de dos personas, siempre como ${role}.`,
       weeks: participations.map(participation => participation.week),
       assignments: participations.map(participation => `${participation.title} (${participation.role})`),
+      slotKeys: participations.map(participation => participation.slotKey),
     }]
   })
 }
 
 function appendRole(
-  roles: Map<string, Array<{ role: 'Conductor' | 'Estudiante', week: string, title: string }>>,
+  roles: Map<string, RoleParticipation[]>,
   participantId: string,
   role: 'Conductor' | 'Estudiante',
+  slotKey: string,
   week: string,
   title: string,
 ): void {
   const participations = roles.get(participantId) ?? []
-  participations.push({ role, week, title })
+  participations.push({ role, slotKey, week, title })
   roles.set(participantId, participations)
 }
