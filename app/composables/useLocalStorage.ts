@@ -1,8 +1,9 @@
-import { ref, watch } from 'vue'
-import { debugLog, debugError } from '~/utils/debug'
+import { effectScope, ref, watch } from 'vue'
+import { debugError, debugLog } from '../utils/debug'
 
 // Global storage for refs to ensure singleton pattern
 const storageRefs = new Map<string, ReturnType<typeof ref>>()
+const storageScope = effectScope(true)
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
   debugLog('useLocalStorage', `Called for "${key}"`)
@@ -36,15 +37,17 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
   }
 
   // Set up watcher
-  watch(storedValue, (newValue, oldValue) => {
-    debugLog('useLocalStorage', `"${key}" WATCH triggered!`, { newValue, oldValue })
-    try {
-      window.localStorage.setItem(key, JSON.stringify(newValue))
-      debugLog('useLocalStorage', `"${key}" saved successfully`)
-    } catch (e) {
-      debugError('useLocalStorage', `Error saving "${key}":`, e)
-    }
-  }, { deep: true, immediate: false })
+  storageScope.run(() => {
+    watch(storedValue, (newValue, oldValue) => {
+      debugLog('useLocalStorage', `"${key}" WATCH triggered!`, { newValue, oldValue })
+      try {
+        window.localStorage.setItem(key, JSON.stringify(newValue))
+        debugLog('useLocalStorage', `"${key}" saved successfully`)
+      } catch (e) {
+        debugError('useLocalStorage', `Error saving "${key}":`, e)
+      }
+    }, { deep: true, immediate: false, flush: 'sync' })
+  })
 
   debugLog('useLocalStorage', `"${key}" watcher set up`)
 

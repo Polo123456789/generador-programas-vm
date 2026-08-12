@@ -4,6 +4,10 @@ body {
     font-family: 'Calibri', sans-serif;
 }
 
+.only-print {
+    display: none;
+}
+
 .container {
     max-width: clamp(300px, 90%, 1320px);
     margin: 0 auto;
@@ -21,6 +25,10 @@ body {
 
     .dont-print {
         display: none;
+    }
+
+    .only-print {
+        display: inline;
     }
 
     .container {

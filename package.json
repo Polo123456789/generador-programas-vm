@@ -5,8 +5,9 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
-    "generate": "nuxt generate && rsync -av --delete .output/public/* ./docs",
+    "generate": "nuxt generate && rsync -av --delete --exclude=.nojekyll .output/public/ ./docs",
     "preview": "nuxt preview",
+    "test": "bun test",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {

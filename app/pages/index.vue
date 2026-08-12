@@ -1,276 +1,191 @@
 <script setup lang="ts">
-import {fetchAssingments, type Assingments, type Assignment} from '~/utils/assingments';
+import { computed, ref, watch } from 'vue'
+import { fetchAssignments } from '~/utils/assignments'
+import { runSanityChecks } from '~/utils/sanity'
 
-const url = useLocalStorage<string>("lastAssingmentsURL", "")
+const url = useLocalStorage<string>('lastAssignmentsURL', '')
+if (import.meta.client && !url.value) {
+  const legacyUrl = window.localStorage.getItem('lastAssingmentsURL')
+  if (legacyUrl) {
+    try {
+      const parsed = JSON.parse(legacyUrl) as unknown
+      if (typeof parsed === 'string') {
+        url.value = parsed
+        window.localStorage.removeItem('lastAssingmentsURL')
+      }
+    } catch {
+      // Leave malformed legacy configuration untouched for manual recovery.
+    }
+  }
+}
 const {
-    assignments: assingments,
-    clearAssignments,
-    lastSavedAt,
-    lastSaveError,
-    replaceAssignments,
-    saveStatus,
-} = usePersistentAssignments()
-const loadingAssingments = ref(false)
-const assingmentsError = ref('')
+  clearProgram,
+  lastSavedAt,
+  lastSaveError,
+  program,
+  replaceProgram,
+  saveStatus,
+} = usePersistentProgram()
+const { getParticipantName, participants, syncProgramHistory } = useParticipants()
+const loadingAssignments = ref(false)
+const assignmentsError = ref('')
 
 const saveStatusText = computed(() => {
-    if (lastSaveError.value) {
-        return `Error guardando borrador: ${lastSaveError.value}`
-    }
-
-    if (saveStatus.value === 'saving') {
-        return 'Guardando borrador...'
-    }
-
-    if (lastSavedAt.value) {
-        return `Guardado ${new Date(lastSavedAt.value).toLocaleString()}`
-    }
-
-    return 'Sin borrador guardado'
+  if (lastSaveError.value) return `Error guardando borrador: ${lastSaveError.value}`
+  if (saveStatus.value === 'saving') return 'Guardando borrador...'
+  if (lastSavedAt.value) return `Guardado ${new Date(lastSavedAt.value).toLocaleString()}`
+  return 'Sin borrador guardado'
 })
 
-function fetchAllAssingments() {
-    if (!url.value) return
-    loadingAssingments.value = true
-    assingmentsError.value = ''
-    fetchAssingments(url.value)
-        .then(data => {
-            replaceAssignments(data)
-        })
-        .catch((error) => {
-            console.error('[fetchAllAssingments] Error cargando asignaciones:', error)
-            assingmentsError.value = 'No se pudo cargar el programa. Revisa el enlace o intenta de nuevo.'
-        })
-        .finally(() => {
-            loadingAssingments.value = false
-        })
-}
+const sanityFindings = computed(() => (
+  program.value
+    ? runSanityChecks({ program: program.value, participants: participants.value })
+    : []
+))
 
-function updateReadingStudent(assingment: Assingments, value: Assignment) {
-    assingment.reading = value
-}
+watch(program, (currentProgram) => {
+  if (currentProgram) syncProgramHistory(currentProgram)
+}, { deep: true, flush: 'post', immediate: true })
 
-function updateSchoolStudent(a: Assignment, value: Assignment) {
-    a.student = value.student
-    if (value.assistant !== undefined) {
-        a.assistant = value.assistant
-    }
+async function fetchAllAssignments(): Promise<void> {
+  if (!url.value) return
+  loadingAssignments.value = true
+  assignmentsError.value = ''
+  try {
+    replaceProgram(await fetchAssignments(url.value))
+  } catch (error) {
+    console.error('[fetchAllAssignments] Error cargando asignaciones:', error)
+    assignmentsError.value = 'No se pudo cargar el programa. Revisa el enlace o intenta de nuevo.'
+  } finally {
+    loadingAssignments.value = false
+  }
 }
 </script>
 
 <template>
-    <main class="container">
-        <!-- Navigation Header -->
-        <nav class="dont-print bg-gray-800 text-white p-4 flex justify-between items-center">
-            <h1 class="text-xl font-bold">Generador de Programas</h1>
-            <NuxtLink to="/students" class="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors">
-                Gestionar Estudiantes
-            </NuxtLink>
-        </nav>
+  <main class="container">
+    <nav class="dont-print flex items-center justify-between bg-gray-800 p-4 text-white">
+      <h1 class="text-xl font-bold">Generador de Programas</h1>
+      <NuxtLink to="/participants" class="rounded bg-amber-600 px-4 py-2 text-white hover:bg-amber-700">
+        Gestionar Participantes
+      </NuxtLink>
+    </nav>
 
-        <!-- URL Input Section -->
-        <div class="dont-print p-4 flex gap-2 items-center">
-            <PrintableInput v-model="url" class="flex-1" />
-            <Button @click="fetchAllAssingments" :disabled="loadingAssingments">
-                Cargar
-            </Button>
-            <Button @click="clearAssignments">
-                Borrar
-            </Button>
-        </div>
-        <div v-if="assingmentsError" class="dont-print px-4 pb-2 text-sm text-red-700">
-            {{ assingmentsError }}
-        </div>
-        <div class="dont-print px-4 pb-3 text-sm" :class="lastSaveError ? 'text-red-700' : 'text-gray-600'">
-            {{ saveStatusText }}
-        </div>
-        <div v-for="(assingment, idx) in assingments" :key="idx" class="dont-break mb-8">
-            <table class="w-full border-collapse pt-4">
-                <tbody>
-                    <!--
-                    Introducción
-                -->
-                    <tr>
-                        <td class="font-bold text-lg" colspan="2">{{ assingment.date }} | {{ assingment.assignedReading }}
-                        </td>
-                        <td class="text-right pr-2">Presidente:</td>
-                        <td>
-                            <PrintableInput v-model="assingment.president" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="py-1" colspan="4">● Canción {{ assingment.songs[0] }} y oración</td>
-                    </tr>
-                    <tr>
-                        <td class="py-1" colspan="4">● Palabras de introducción (1 min.)</td>
-                    </tr>
+    <div class="dont-print flex items-center gap-2 p-4">
+      <input v-model="url" class="flex-1 rounded border border-gray-300 px-2 py-1" type="url" placeholder="URL de Vida y Ministerio">
+      <Button :disabled="loadingAssignments" @click="fetchAllAssignments">Cargar</Button>
+      <Button @click="clearProgram">Borrar</Button>
+    </div>
+    <div v-if="assignmentsError" class="dont-print px-4 pb-2 text-sm text-red-700">{{ assignmentsError }}</div>
+    <div class="dont-print px-4 pb-3 text-sm" :class="lastSaveError ? 'text-red-700' : 'text-gray-600'">
+      {{ saveStatusText }}
+    </div>
 
-                    <!--
-                    Primera Reunion
-                -->
-                    <tr>
-                        <td class="bg-gray-700 text-white font-bold p-1" colspan="1">TESOROS DE LA BIBLIA</td>
-                    </tr>
-                    <tr>
-                        <td class="py-1" colspan="2">● {{ assingment.treasures.title }} ({{ assingment.treasures.duration }}
-                            mins.)</td>
-                        <td colspan="2">
-                            <PrintableInput v-model="assingment.treasures.student" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="py-1" colspan="2">● Busquemos perlas escondidas (10 mins.)</td>
-                        <td colspan="2">
-                            <PrintableInput v-model="assingment.gems.student" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="py-1">● Lectura de la Biblia</td>
-                        <td class="text-right pr-2">Estudiante:</td>
-                        <td colspan="2">
-                            <StudentAssigner
-                                :model-value="assingment.reading"
-                                @update:model-value="(val) => updateReadingStudent(assingment, val)"
-                                :week-date="assingment.date"
-                                type="reading"
-                                :needs-companion="false"
-                            />
-                        </td>
-                    </tr>
+    <SanityAlerts :findings="sanityFindings" />
 
-                    <!--
-                    Segunda Reunion
-                -->
-                    <tr>
-                        <td class="bg-amber-600 text-white font-bold p-1 mt-2" colspan="1">SEAMOS MEJORES MAESTROS</td>
-                    </tr>
-                    <tr v-for="(a, aIdx) in assingment.school" :key="`main-school-${aIdx}`">
-                        <td class="py-1 align-middle">● {{ a.title }} ({{ a.duration }} mins.)</td>
-                        <template v-if="a.assistant !== undefined">
-                            <td class="text-right pr-2 align-middle whitespace-nowrap">
-                                Estudiante:
-                            </td>
-                            <td class="align-middle">
-                                <PrintableInput v-model="a.student" />
-                            </td>
-                            <td class="align-middle">
-                                <div class="flex gap-2 items-center">
-                                    <PrintableInput v-model="a.assistant" class="flex-1" />
-                                    <StudentAssigner
-                                        :model-value="a"
-                                        @update:model-value="(val) => updateSchoolStudent(a, val)"
-                                        :week-date="assingment.date"
-                                        type="school"
-                                        :needs-companion="true"
-                                        button-only
-                                    />
-                                </div>
-                            </td>
-                        </template>
-                        <template v-else>
-                            <td class="text-right pr-2 align-middle whitespace-nowrap">
-                                Estudiante:
-                            </td>
-                            <td colspan="2" class="align-middle">
-                                <StudentAssigner
-                                    :model-value="a"
-                                    @update:model-value="(val) => updateSchoolStudent(a, val)"
-                                    :week-date="assingment.date"
-                                    type="school"
-                                    :needs-companion="false"
-                                />
-                            </td>
-                        </template>
-                    </tr>
+    <div v-if="!program" class="dont-print px-4 py-16 text-center text-gray-500">
+      No hay un programa cargado. Registra participantes y carga un programa para comenzar.
+    </div>
 
-                    <!--
-                    Tercera Reunion
-                -->
-                    <tr>
-                        <td class="bg-red-800 text-white font-bold p-1 mt-2" colspan="1">NUESTRA VIDA CRISTIANA</td>
-                    </tr>
-                    <tr>
-                        <td class="py-1" colspan="4">● Canción {{ assingment.songs[1] }}</td>
-                    </tr>
-                    <tr v-for="(a, aIdx) in assingment.livingSpeeches" :key="aIdx">
-                        <td class="py-1" colspan="2">● {{ a.title }} ({{ a.duration }} mins.)</td>
-                        <td colspan="2">
-                            <PrintableInput v-model="a.student" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="py-1">● Estudio bíblico de la congregación (30 mins.)</td>
-                        <td class="text-right pr-2">Conductor/Lector:</td>
-                        <td>
-                            <PrintableInput v-model="assingment.book.student" />/
-                        </td>
-                        <td>
-                            <PrintableInput v-model="assingment.book.assistant" />
-                        </td>
-                    </tr>
+    <template v-else>
+      <div v-for="(week, weekIndex) in program.weeks" :key="weekIndex" class="dont-break mb-8">
+        <table class="w-full border-collapse pt-4">
+          <tbody>
+            <tr>
+              <td class="text-lg font-bold" colspan="2">{{ week.date }} | {{ week.assignedReading }}</td>
+              <td class="pr-2 text-right">Presidente:</td>
+              <td><ParticipantSelect v-model="week.presidentId" role="president" :accessible-name="`Presidente, ${week.date}`" /></td>
+            </tr>
+            <tr><td class="py-1" colspan="4">● Canción {{ week.songs[0] }} y oración</td></tr>
+            <tr><td class="py-1" colspan="4">● Palabras de introducción (1 min.)</td></tr>
 
-                    <!--
-                    Conclusión
-                -->
-                    <tr>
-                        <td class="py-1" colspan="4">● Palabras de conclusión (3 mins.)</td>
-                    </tr>
-                    <tr>
-                        <td class="py-1">● Canción {{ assingment.songs[2] }}</td>
-                        <td class="text-right pr-2">Oración:</td>
-                        <td colspan="2">
-                            <PrintableInput v-model="assingment.finalPrayer" />
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+            <tr><td class="bg-gray-700 p-1 font-bold text-white">TESOROS DE LA BIBLIA</td></tr>
+            <tr>
+              <td class="py-1" colspan="2">● {{ week.treasures.title }} ({{ week.treasures.duration }} mins.)</td>
+              <td colspan="2"><ParticipantSelect v-model="week.treasures.participantId" role="treasures" :accessible-name="`${week.treasures.title}, ${week.date}`" /></td>
+            </tr>
+            <tr>
+              <td class="py-1" colspan="2">● Busquemos perlas escondidas (10 mins.)</td>
+              <td colspan="2"><ParticipantSelect v-model="week.gems.participantId" role="gems" :accessible-name="`Busquemos perlas escondidas, ${week.date}`" /></td>
+            </tr>
+            <tr>
+              <td class="py-1">● Lectura de la Biblia</td>
+              <td class="pr-2 text-right">Estudiante:</td>
+              <td colspan="2"><ParticipantSelect v-model="week.reading.participantId" role="reading" :accessible-name="`Lectura de la Biblia, ${week.date}`" /></td>
+            </tr>
 
-        <div class="dont-break mb-8" v-if="assingments.length > 0">
-            <table class="w-full border-collapse">
-                <thead>
-                    <tr>
-                        <th colspan="3" class="text-lg bg-amber-700 text-white font-bold p-1 mt-2 border border-black">
-                            Seamos Mejores Maestros
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template v-for="(assingment, idx) in assingments" :key="idx">
-                        <tr>
-                            <td colspan="3" class="font-bold text-white bg-amber-600 p-1 mt-2 border border-black">
-                                {{assingment.date}}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="border px-2">
-                                Lectura
-                            </td>
-                            <td colspan="2" class="border text-center">
-                                {{assingment.reading.student}}
-                            </td>
-                        </tr>
-                        <tr v-for="(a, aIdx) in assingment.school" :key="`school-${idx}-${aIdx}`">
-                            <td class="border px-2">
-                                {{ a.title }} ({{ a.duration }} mins.)
-                            </td>
-                            <template v-if="a.assistant !== undefined">
-                                <td class="border text-center">
-                                    {{a.student}}
-                                </td>
-                                <td class="border text-center">
-                                    {{a.assistant}}
-                                </td>
-                            </template>
-                            <template v-else>
-                                <td colspan="2" class="border text-center">
-                                    {{a.student}}
-                                </td>
-                            </template>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-        </div>
-    </main>
+            <tr><td class="mt-2 bg-amber-600 p-1 font-bold text-white">SEAMOS MEJORES MAESTROS</td></tr>
+            <tr v-for="(assignment, assignmentIndex) in week.school" :key="`school-${assignmentIndex}`">
+              <td class="py-1 align-middle">● {{ assignment.title }} ({{ assignment.duration }} mins.)</td>
+              <template v-if="assignment.studentId !== undefined">
+                <td class="pr-2 text-right align-middle whitespace-nowrap">Conductor:</td>
+                <td class="align-middle">
+                  <ParticipantSelect
+                    v-model="assignment.conductorId"
+                    role="school"
+                    :accessible-name="`Conductor de ${assignment.title}, ${week.date}`"
+                    :same-gender-as-id="assignment.studentId"
+                    :exclude-ids="assignment.studentId ? [assignment.studentId] : []"
+                  />
+                </td>
+                <td class="align-middle">
+                  <ParticipantSelect
+                    v-model="assignment.studentId"
+                    role="school"
+                    :accessible-name="`Estudiante de ${assignment.title}, ${week.date}`"
+                    :same-gender-as-id="assignment.conductorId"
+                    :exclude-ids="assignment.conductorId ? [assignment.conductorId] : []"
+                  />
+                </td>
+              </template>
+              <template v-else>
+                <td class="pr-2 text-right align-middle whitespace-nowrap">Estudiante:</td>
+                <td colspan="2"><ParticipantSelect v-model="assignment.conductorId" role="school" :accessible-name="`${assignment.title}, ${week.date}`" /></td>
+              </template>
+            </tr>
+
+            <tr><td class="mt-2 bg-red-800 p-1 font-bold text-white">NUESTRA VIDA CRISTIANA</td></tr>
+            <tr><td class="py-1" colspan="4">● Canción {{ week.songs[1] }}</td></tr>
+            <tr v-for="(assignment, assignmentIndex) in week.livingSpeeches" :key="`living-${assignmentIndex}`">
+              <td class="py-1" colspan="2">● {{ assignment.title }} ({{ assignment.duration }} mins.)</td>
+              <td colspan="2"><ParticipantSelect v-model="assignment.participantId" role="livingSpeech" :accessible-name="`${assignment.title}, ${week.date}`" /></td>
+            </tr>
+            <tr>
+              <td class="py-1">● Estudio bíblico de la congregación (30 mins.)</td>
+              <td class="pr-2 text-right">Conductor/Lector:</td>
+              <td><ParticipantSelect v-model="week.bookConductorId" role="bookConductor" :accessible-name="`Conductor del estudio bíblico, ${week.date}`" /> /</td>
+              <td><ParticipantSelect v-model="week.bookReaderId" role="bookReader" :accessible-name="`Lector del estudio bíblico, ${week.date}`" /></td>
+            </tr>
+
+            <tr><td class="py-1" colspan="4">● Palabras de conclusión (3 mins.)</td></tr>
+            <tr>
+              <td class="py-1">● Canción {{ week.songs[2] }}</td>
+              <td class="pr-2 text-right">Oración:</td>
+              <td colspan="2"><ParticipantSelect v-model="week.finalPrayerId" role="finalPrayer" :accessible-name="`Oración final, ${week.date}`" /></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-if="program.weeks.length" class="dont-break mb-8">
+        <table class="w-full border-collapse">
+          <thead><tr><th colspan="3" class="border border-black bg-amber-700 p-1 text-lg font-bold text-white">Seamos Mejores Maestros</th></tr></thead>
+          <tbody>
+            <template v-for="(week, weekIndex) in program.weeks" :key="`summary-${weekIndex}`">
+              <tr><td colspan="3" class="border border-black bg-amber-600 p-1 font-bold text-white">{{ week.date }}</td></tr>
+              <tr><td class="border px-2">Lectura</td><td colspan="2" class="border text-center">{{ getParticipantName(week.reading.participantId) }}</td></tr>
+              <tr v-for="(assignment, assignmentIndex) in week.school" :key="`summary-school-${assignmentIndex}`">
+                <td class="border px-2">{{ assignment.title }} ({{ assignment.duration }} mins.)</td>
+                <template v-if="assignment.studentId !== undefined">
+                  <td class="border text-center">{{ getParticipantName(assignment.conductorId) }}</td>
+                  <td class="border text-center">{{ getParticipantName(assignment.studentId) }}</td>
+                </template>
+                <td v-else colspan="2" class="border text-center">{{ getParticipantName(assignment.conductorId) }}</td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </template>
+  </main>
 </template>
