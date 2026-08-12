@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import type { AppBackup, BackupSummary } from '~/utils/backup'
+import { createBackup, parseBackup, summarizeBackup } from '~/utils/backup'
 import type { ParticipantGender, ParticipantRole } from '~/utils/participants'
 import { PARTICIPANT_ROLE_LABELS, PARTICIPANT_ROLES } from '~/utils/participants'
 
@@ -9,15 +11,27 @@ const {
   legacyMigrationAvailable,
   migrateLegacyData,
   participants,
+  assignmentHistory,
+  renameParticipant,
+  replaceParticipantData,
   setParticipantRoles,
   toggleParticipantHidden,
 } = useParticipants()
+const { program, restoreProgram } = usePersistentProgram()
+const sourceUrl = useLocalStorage<string>('lastAssignmentsURL', '')
 
 const newParticipantName = ref('')
 const newParticipantGender = ref<ParticipantGender>('M')
 const newParticipantRoles = ref<ParticipantRole[]>(['school', 'reading'])
 const formMessage = ref('')
 const formError = ref('')
+const pendingBackup = ref<AppBackup | null>(null)
+const pendingBackupSummary = ref<BackupSummary | null>(null)
+const backupError = ref('')
+const backupMessage = ref('')
+const editingParticipantId = ref<string | null>(null)
+const editingParticipantName = ref('')
+const renameError = ref('')
 
 const sortedParticipants = computed(() => (
   [...participants.value].sort((left, right) => left.name.localeCompare(right.name))
@@ -66,6 +80,83 @@ function handleMigration(): void {
     formError.value = error instanceof Error ? error.message : 'No se pudo completar la migración'
   }
 }
+
+function downloadBackup(): void {
+  backupError.value = ''
+  const backup = createBackup(
+    program.value,
+    participants.value,
+    assignmentHistory.value,
+    sourceUrl.value ?? '',
+  )
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+  const downloadUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = downloadUrl
+  link.download = `generador-programas-respaldo-${new Date().toISOString().slice(0, 10)}.json`
+  link.click()
+  URL.revokeObjectURL(downloadUrl)
+  backupMessage.value = 'Respaldo descargado.'
+}
+
+async function inspectBackup(event: Event): Promise<void> {
+  backupError.value = ''
+  backupMessage.value = ''
+  pendingBackup.value = null
+  pendingBackupSummary.value = null
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  try {
+    const backup = parseBackup(await file.text())
+    pendingBackup.value = backup
+    pendingBackupSummary.value = summarizeBackup(backup)
+  } catch (error) {
+    backupError.value = error instanceof Error ? error.message : 'No se pudo leer el respaldo.'
+  }
+}
+
+function restorePendingBackup(): void {
+  if (!pendingBackup.value) return
+  const backup = pendingBackup.value
+  replaceParticipantData(backup.participants, backup.assignmentHistory)
+  restoreProgram(backup.program)
+  sourceUrl.value = backup.sourceUrl
+  pendingBackup.value = null
+  pendingBackupSummary.value = null
+  backupMessage.value = 'Respaldo restaurado. El padrón, historial y programa fueron reemplazados.'
+}
+
+function cancelPendingBackup(): void {
+  pendingBackup.value = null
+  pendingBackupSummary.value = null
+}
+
+function startRename(participantId: string, currentName: string): void {
+  editingParticipantId.value = participantId
+  editingParticipantName.value = currentName
+  renameError.value = ''
+}
+
+function saveRename(): void {
+  if (!editingParticipantId.value) return
+  try {
+    renameParticipant(editingParticipantId.value, editingParticipantName.value)
+    editingParticipantId.value = null
+    editingParticipantName.value = ''
+    renameError.value = ''
+  } catch (error) {
+    renameError.value = error instanceof Error ? error.message : 'No se pudo cambiar el nombre.'
+  }
+}
+
+function cancelRename(): void {
+  editingParticipantId.value = null
+  editingParticipantName.value = ''
+  renameError.value = ''
+}
 </script>
 
 <template>
@@ -84,6 +175,44 @@ function handleMigration(): void {
           Puedes importar el padrón y el historial de fechas y parejas. El programa anterior no se importará.
         </p>
         <Button @click="handleMigration">Migrar padrón e historial</Button>
+      </section>
+
+      <section class="mb-6 rounded-lg border border-gray-300 bg-white p-4">
+        <h2 class="font-semibold">Respaldo y restauración</h2>
+        <p class="my-2 text-sm text-gray-600">
+          El respaldo incluye el programa actual, participantes, aptitudes, historial y URL de origen.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <Button @click="downloadBackup">Descargar respaldo</Button>
+          <label class="cursor-pointer rounded bg-gray-700 px-4 py-2 text-white hover:bg-gray-800">
+            Revisar respaldo
+            <input class="sr-only" type="file" accept="application/json,.json" @change="inspectBackup">
+          </label>
+        </div>
+
+        <div v-if="pendingBackupSummary" class="mt-4 rounded border border-amber-300 bg-amber-50 p-3 text-sm">
+          <p class="font-semibold">Contenido listo para restaurar</p>
+          <p>Exportado: {{ new Date(pendingBackupSummary.exportedAt).toLocaleString() }}</p>
+          <p>
+            {{ pendingBackupSummary.participants }} participantes ·
+            {{ pendingBackupSummary.historyRecords }} registros históricos ·
+            <span v-if="pendingBackupSummary.hasProgram">
+              programa de {{ pendingBackupSummary.weeks }} semanas
+            </span>
+            <span v-else>sin programa guardado</span>
+          </p>
+          <p class="my-2 font-medium text-amber-900">
+            Restaurar reemplazará todos los datos actuales. Nada se modifica hasta confirmar aquí.
+          </p>
+          <div class="flex gap-2">
+            <Button @click="restorePendingBackup">Confirmar restauración</Button>
+            <button type="button" class="rounded border border-gray-400 px-4 py-2" @click="cancelPendingBackup">
+              Cancelar
+            </button>
+          </div>
+        </div>
+        <p v-if="backupError" class="mt-2 text-sm text-red-700">{{ backupError }}</p>
+        <p v-if="backupMessage" class="mt-2 text-sm text-green-700">{{ backupMessage }}</p>
       </section>
 
       <section class="mb-6 rounded-lg bg-gray-50 p-4">
@@ -142,20 +271,49 @@ function handleMigration(): void {
           >
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h3 class="font-semibold">{{ participant.name }}</h3>
+                <template v-if="editingParticipantId === participant.id">
+                  <div class="flex flex-wrap gap-2">
+                    <input
+                      v-model="editingParticipantName"
+                      :aria-label="`Nuevo nombre para ${participant.name}`"
+                      class="rounded border px-2 py-1"
+                      type="text"
+                      @keyup.enter="saveRename"
+                    >
+                    <button type="button" class="rounded bg-blue-700 px-3 py-1 text-sm text-white" @click="saveRename">
+                      Guardar nombre
+                    </button>
+                    <button type="button" class="rounded border px-3 py-1 text-sm" @click="cancelRename">
+                      Cancelar
+                    </button>
+                  </div>
+                  <p v-if="renameError" class="mt-1 text-sm text-red-700">
+                    {{ renameError }}
+                  </p>
+                </template>
+                <h3 v-else class="font-semibold">{{ participant.name }}</h3>
                 <p class="text-sm">
                   {{ participant.gender === 'M' ? 'Masculino' : 'Femenino' }} ·
                   Última asignación: {{ getLastAssignmentDate(participant.id) ?? 'Nunca' }}
                 </p>
               </div>
-              <button
-                class="rounded px-3 py-1 text-sm text-white"
-                :class="participant.hidden ? 'bg-green-700' : 'bg-gray-700'"
-                type="button"
-                @click="toggleParticipantHidden(participant.id)"
-              >
-                {{ participant.hidden ? 'Activar' : 'Ocultar' }}
-              </button>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  class="rounded border border-gray-400 px-3 py-1 text-sm"
+                  @click="startRename(participant.id, participant.name)"
+                >
+                  Renombrar
+                </button>
+                <button
+                  class="rounded px-3 py-1 text-sm text-white"
+                  :class="participant.hidden ? 'bg-green-700' : 'bg-gray-700'"
+                  type="button"
+                  @click="toggleParticipantHidden(participant.id)"
+                >
+                  {{ participant.hidden ? 'Activar' : 'Ocultar' }}
+                </button>
+              </div>
             </div>
 
             <div v-if="participant.gender === 'M'" class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

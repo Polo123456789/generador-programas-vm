@@ -99,6 +99,30 @@ export function useParticipants() {
     if (participant) participant.eligibleRoles = normalizeParticipantRoles(participant.gender, roles)
   }
 
+  function renameParticipant(id: string, name: string): void {
+    const normalizedName = normalizeName(name)
+    if (!normalizedName) throw new Error('El nombre es requerido.')
+    if (participants.value.some(participant => (
+      participant.id !== id && normalizeName(participant.name) === normalizedName
+    ))) {
+      throw new Error('Ya existe otro participante con ese nombre.')
+    }
+
+    const participant = participants.value.find(candidate => candidate.id === id)
+    if (!participant) throw new Error('No se encontró el participante.')
+    participant.name = name.trim()
+  }
+
+  function replaceParticipantData(
+    nextParticipants: Participant[],
+    nextHistory: AssignmentHistoryRecord[],
+  ): void {
+    window.localStorage.setItem(PARTICIPANTS_KEY, JSON.stringify(nextParticipants))
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory))
+    participants.value = nextParticipants
+    assignmentHistory.value = nextHistory
+  }
+
   function getParticipantName(id: string | null | undefined): string {
     if (!id) return ''
     return participantsById.value.get(id)?.name ?? 'Participante no encontrado'
@@ -219,6 +243,8 @@ export function useParticipants() {
     getLastTimeTogether,
     getParticipantName,
     migrateLegacyData,
+    renameParticipant,
+    replaceParticipantData,
     setParticipantRoles,
     syncProgramHistory,
     toggleParticipantHidden,

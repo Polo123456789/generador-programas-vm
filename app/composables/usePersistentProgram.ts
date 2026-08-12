@@ -114,6 +114,11 @@ export function usePersistentProgram() {
     saveNow()
   }
 
+  function restoreProgram(nextProgram: MeetingProgram | null): void {
+    program.value = nextProgram
+    saveNow()
+  }
+
   if (import.meta.client && !storageInitialized) {
     storageInitialized = true
     const stored = parseStoredProgram(window.localStorage.getItem(PROGRAM_KEY))
@@ -157,6 +162,7 @@ export function usePersistentProgram() {
     lastSavedAt,
     lastSaveError,
     replaceProgram,
+    restoreProgram,
     saveNow,
     saveStatus,
   }

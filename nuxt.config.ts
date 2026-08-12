@@ -11,5 +11,8 @@ export default defineNuxtConfig({
   },
   app: {
     baseURL: '/generador-programas-vm/',
+    head: {
+      link: [{ rel: 'icon', href: '/generador-programas-vm/favicon.ico' }],
+    },
   }
 })
