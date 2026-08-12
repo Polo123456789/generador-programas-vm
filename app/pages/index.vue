@@ -206,7 +206,7 @@ async function fetchAllAssignments(): Promise<void> {
                 />
               </td>
               <td class="pr-2 text-right align-middle whitespace-nowrap">
-                {{ getSchoolStudentCount(assignment) === 2 ? 'Conductor / Estudiante:' : 'Estudiante:' }}
+                Estudiante:
               </td>
               <td colspan="2" class="align-middle">
                 <StudentAssigner

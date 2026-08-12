@@ -47,6 +47,13 @@ const candidates = computed(() => rankParticipants({
   targetChronologicalOrder: props.chronologicalOrder,
   targetSlotKey: props.slotKey,
 }))
+const maleCandidates = computed(() => candidates.value.filter(candidate => candidate.participant.gender === 'M'))
+const femaleCandidates = computed(() => candidates.value.filter(candidate => candidate.participant.gender === 'F'))
+const primaryCandidates = computed(() => (
+  props.role === 'school' && !selectedNeedsCompanion.value
+    ? maleCandidates.value
+    : candidates.value
+))
 const companions = computed(() => selectedPrimaryId.value
   ? rankPartners({
       participants: participants.value,
@@ -261,13 +268,33 @@ function trapFocus(event: KeyboardEvent): void {
               </p>
             </fieldset>
 
-            <p v-if="candidates.length === 0" class="py-10 text-center text-gray-500">
+            <p v-if="primaryCandidates.length === 0" class="py-10 text-center text-gray-500">
               No hay participantes disponibles. Revisa el padrón y sus aptitudes.
             </p>
 
+            <div
+              v-else-if="role === 'school' && selectedNeedsCompanion"
+              class="grid grid-cols-2 gap-4"
+            >
+              <CandidateGroup
+                :candidates="maleCandidates"
+                label="Hombres"
+                tone="blue"
+                empty-history-label="Nunca ha participado en esta parte"
+                @select="selectPrimary"
+              />
+              <CandidateGroup
+                :candidates="femaleCandidates"
+                label="Mujeres"
+                tone="pink"
+                empty-history-label="Nunca ha participado en esta parte"
+                @select="selectPrimary"
+              />
+            </div>
+
             <div v-else class="mx-auto max-w-xl">
               <CandidateGroup
-                :candidates="candidates"
+                :candidates="primaryCandidates"
                 :label="role === 'school' ? 'Estudiantes disponibles' : 'Participantes disponibles'"
                 tone="blue"
                 :empty-history-label="role === 'school' ? 'Nunca ha participado en esta parte' : 'Nunca ha participado en este cargo'"
