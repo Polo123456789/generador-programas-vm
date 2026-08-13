@@ -125,11 +125,11 @@ function clearAssignment(): void {
 }
 
 function primaryLabel(): string {
-  return getParticipantName(props.modelValue) || 'Sin asignar'
+  return getParticipantName(props.modelValue)
 }
 
 function companionLabel(): string {
-  return getParticipantName(props.companionValue) || 'Sin asignar'
+  return getParticipantName(props.companionValue)
 }
 
 function assignmentHistoryLabel(candidate: ParticipantRecommendation): string {
