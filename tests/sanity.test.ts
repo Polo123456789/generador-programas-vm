@@ -75,12 +75,24 @@ describe('sanity checks', () => {
     expect(findings.every(finding => finding.slotKeys.length === 3)).toBe(true)
   })
 
-  test('weekly load counts separate occupied slots', () => {
+  test('weekly load ignores the final prayer assignment', () => {
     const currentWeek = week('Semana 1')
     currentWeek.presidentId = 'a'
     currentWeek.finalPrayerId = 'a'
-    expect(checkWeeklyLoad({ program: program([currentWeek]), participants: [] })[0]?.slotKeys)
-      .toEqual(['0:president', '0:finalPrayer'])
+    expect(checkWeeklyLoad({ program: program([currentWeek]), participants: [] })).toEqual([])
+  })
+
+  test('weekly load still reports two other assignments without including final prayer', () => {
+    const currentWeek = week('Semana 1')
+    currentWeek.presidentId = 'a'
+    currentWeek.treasures.participantId = 'a'
+    currentWeek.finalPrayerId = 'a'
+
+    expect(checkWeeklyLoad({ program: program([currentWeek]), participants: [] })[0]).toMatchObject({
+      reason: 'Aparece en 2 partes durante la misma semana.',
+      assignments: ['Presidente', 'Tesoros'],
+      slotKeys: ['0:president', '0:treasures'],
+    })
   })
 
   test('a repeated pair is unordered', () => {

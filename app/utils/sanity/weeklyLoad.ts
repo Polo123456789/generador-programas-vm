@@ -5,7 +5,7 @@ export const checkWeeklyLoad: SanityCheck = ({ program }) => {
   const groups = new Map<string, Array<{ slotKey: string, title: string, week: string }>>()
 
   getProgramSlots(program).forEach((slot) => {
-    if (!slot.participantId) return
+    if (!slot.participantId || slot.role === 'finalPrayer') return
     const key = `${slot.weekIndex}:${slot.participantId}`
     const assignments = groups.get(key) ?? []
     assignments.push({ slotKey: slot.key, title: slot.assignmentTitle, week: slot.weekDate })
