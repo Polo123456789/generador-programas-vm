@@ -181,7 +181,10 @@ function trapFocus(event: KeyboardEvent): void {
         <span class="px-1 text-gray-400" aria-hidden="true">/</span>
         <span class="font-medium">{{ companionLabel() }}</span>
       </template>
-      <span v-else class="block truncate font-medium" :title="primaryLabel()">{{ primaryLabel() }}</span>
+      <span v-else class="block truncate font-medium" :title="primaryLabel()">
+        <template v-if="primaryLabel()">{{ primaryLabel() }}</template>
+        <template v-else>&nbsp;</template>
+      </span>
     </div>
     <button
       ref="triggerButton"
