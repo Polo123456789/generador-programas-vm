@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import type { ParticipantRole } from '~/utils/participants'
-import type { ParticipantRecommendation } from '~/utils/participantRecommendations'
+import type { ParticipantRecommendation, PartnerRankingPriority } from '~/utils/participantRecommendations'
 import { rankParticipants, rankPartners } from '~/utils/participantRecommendations'
 
 interface Props {
@@ -34,6 +34,7 @@ const { assignmentHistory, getParticipantName, participants } = useParticipants(
 const phase = ref<'primary' | 'companion' | null>(null)
 const selectedPrimaryId = ref<string | null>(null)
 const selectedNeedsCompanion = ref(false)
+const partnerRankingPriority = ref<PartnerRankingPriority>('timeTogether')
 const dialog = ref<HTMLElement | null>(null)
 const triggerButton = ref<HTMLButtonElement | null>(null)
 
@@ -65,7 +66,7 @@ const companions = computed(() => selectedPrimaryId.value
       targetCalendarOrder: props.calendarOrder,
       targetChronologicalOrder: props.chronologicalOrder,
       targetSlotKey: props.slotKey,
-    })
+    }, partnerRankingPriority.value)
   : [])
 const hasAssignment = computed(() => Boolean(props.modelValue || props.companionValue))
 const modalTitle = computed(() => {
@@ -89,6 +90,7 @@ watch(phase, async (currentPhase) => {
 function open(): void {
   selectedPrimaryId.value = props.modelValue
   selectedNeedsCompanion.value = props.needsCompanion
+  partnerRankingPriority.value = 'timeTogether'
   phase.value = 'primary'
 }
 
@@ -224,12 +226,44 @@ function trapFocus(event: KeyboardEvent): void {
               <h2 id="student-assigner-title" class="mt-1 text-xl font-bold text-gray-950">{{ modalTitle }}</h2>
               <p class="mt-1 text-sm text-gray-600">
                 <template v-if="phase === 'companion'">
-                  Primero aparecen quienes llevan más tiempo sin participar con esta persona.
+                  <template v-if="partnerRankingPriority === 'timeTogether'">
+                    Primero aparecen quienes llevan más tiempo sin participar con esta persona; luego, quienes tienen la asignación más antigua.
+                  </template>
+                  <template v-else>
+                    Primero aparecen quienes tienen la asignación más antigua; luego, quienes llevan más tiempo sin participar con esta persona.
+                  </template>
                 </template>
                 <template v-else>
                   Primero aparecen quienes llevan más tiempo sin participar en este cargo.
                 </template>
               </p>
+              <fieldset v-if="phase === 'companion'" class="mt-3">
+                <legend class="sr-only">Criterio principal para ordenar estudiantes</legend>
+                <div
+                  class="inline-flex max-w-full rounded-lg border border-gray-300 bg-gray-100 p-1"
+                  role="group"
+                  aria-label="Ordenar primero por"
+                >
+                  <button
+                    type="button"
+                    :aria-pressed="partnerRankingPriority === 'timeTogether'"
+                    class="rounded-md px-3 py-1.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    :class="partnerRankingPriority === 'timeTogether' ? 'bg-white text-amber-800 shadow-sm' : 'text-gray-600 hover:text-gray-950'"
+                    @click="partnerRankingPriority = 'timeTogether'"
+                  >
+                    Tiempo sin participar juntos
+                  </button>
+                  <button
+                    type="button"
+                    :aria-pressed="partnerRankingPriority === 'assignment'"
+                    class="rounded-md px-3 py-1.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    :class="partnerRankingPriority === 'assignment' ? 'bg-white text-amber-800 shadow-sm' : 'text-gray-600 hover:text-gray-950'"
+                    @click="partnerRankingPriority = 'assignment'"
+                  >
+                    Asignación más antigua
+                  </button>
+                </div>
+              </fieldset>
             </div>
             <button
               type="button"

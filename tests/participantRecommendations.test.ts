@@ -185,7 +185,7 @@ describe('participant recommendations', () => {
   })
 
   test('recommends same-gender partners by oldest pairing, then individual participation', () => {
-    const ranked = rankPartners({
+    const context: Parameters<typeof rankPartners>[0] = {
       participants,
       primaryId: 'ana',
       role: 'school',
@@ -195,11 +195,16 @@ describe('participant recommendations', () => {
         history('ana-carla', ['ana', 'carla'], 10, 'school', 'Juntas antigua'),
         history('carla-latest', ['carla'], 50, 'school', 'Carla reciente'),
       ],
-    })
+    }
+    const ranked = rankPartners(context)
 
     expect(ranked.map(candidate => candidate.participant.id)).toEqual(['carla', 'beatriz'])
     expect(ranked[0]?.lastTimeTogether).toBe('Juntas antigua')
     expect(ranked.some(candidate => candidate.participant.id === 'diego')).toBe(false)
+
+    const rankedByAssignment = rankPartners(context, 'assignment')
+
+    expect(rankedByAssignment.map(candidate => candidate.participant.id)).toEqual(['beatriz', 'carla'])
   })
 
   test('prioritizes partners who have never appeared together', () => {

@@ -12,6 +12,8 @@ export interface ParticipantRecommendation {
   lastTimeTogether: string | null
 }
 
+export type PartnerRankingPriority = 'timeTogether' | 'assignment'
+
 interface RecommendationContext {
   participants: Participant[]
   history: AssignmentHistoryRecord[]
@@ -71,7 +73,7 @@ export function rankPartners({
   targetCalendarOrder,
   targetChronologicalOrder,
   targetSlotKey,
-}: PartnerRecommendationContext): ParticipantRecommendation[] {
+}: PartnerRecommendationContext, priority: PartnerRankingPriority = 'timeTogether'): ParticipantRecommendation[] {
   const primary = participants.find(participant => participant.id === primaryId)
   if (!primary) return []
   const target: RankingTarget = {
@@ -94,19 +96,22 @@ export function rankPartners({
       lastAssignmentDate: latestAssignment(relevantHistory, participant.id, role, target)?.weekDate ?? null,
       lastTimeTogether: latestPairAssignment(relevantHistory, primaryId, participant.id, target)?.weekDate ?? null,
     }))
-    .sort((left, right) => (
-      compareHistoryDates(
+    .sort((left, right) => {
+      const pairComparison = compareHistoryDates(
         latestPairAssignment(relevantHistory, primaryId, left.participant.id, target),
         latestPairAssignment(relevantHistory, primaryId, right.participant.id, target),
         target,
       )
-      || compareHistoryDates(
+      const assignmentComparison = compareHistoryDates(
         latestAssignment(relevantHistory, left.participant.id, role, target),
         latestAssignment(relevantHistory, right.participant.id, role, target),
         target,
       )
-      || compareNames(left.participant, right.participant)
-    ))
+
+      return priority === 'timeTogether'
+        ? pairComparison || assignmentComparison || compareNames(left.participant, right.participant)
+        : assignmentComparison || pairComparison || compareNames(left.participant, right.participant)
+    })
 }
 
 function latestAssignment(
