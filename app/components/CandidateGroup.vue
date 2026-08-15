@@ -6,6 +6,7 @@ interface Props {
   label: string
   tone: 'blue' | 'pink'
   emptyHistoryLabel: string
+  showWeekPreview?: boolean
 }
 
 const props = defineProps<Props>()
@@ -46,7 +47,16 @@ function historyLabel(candidate: ParticipantRecommendation): string {
             Recomendado
           </span>
         </div>
-        <p class="mt-1 text-sm text-gray-600">{{ historyLabel(candidate) }}</p>
+        <p class="mt-1 text-sm text-gray-600">
+          <AssignmentWeekTooltip
+            v-if="showWeekPreview && candidate.lastAssignment"
+            :assignment="candidate.lastAssignment"
+            :participant-id="candidate.participant.id"
+          >
+            {{ historyLabel(candidate) }}
+          </AssignmentWeekTooltip>
+          <template v-else>{{ historyLabel(candidate) }}</template>
+        </p>
       </button>
     </div>
   </section>

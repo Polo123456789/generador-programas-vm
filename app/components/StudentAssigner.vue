@@ -318,6 +318,7 @@ function trapFocus(event: KeyboardEvent): void {
                 label="Hombres"
                 tone="blue"
                 empty-history-label="Nunca ha participado en esta parte"
+                show-week-preview
                 @select="selectPrimary"
               />
               <CandidateGroup
@@ -325,6 +326,7 @@ function trapFocus(event: KeyboardEvent): void {
                 label="Mujeres"
                 tone="pink"
                 empty-history-label="Nunca ha participado en esta parte"
+                show-week-preview
                 @select="selectPrimary"
               />
             </div>
@@ -335,6 +337,7 @@ function trapFocus(event: KeyboardEvent): void {
                 :label="role === 'school' ? 'Estudiantes disponibles' : 'Participantes disponibles'"
                 tone="blue"
                 :empty-history-label="role === 'school' ? 'Nunca ha participado en esta parte' : 'Nunca ha participado en este cargo'"
+                :show-week-preview="role === 'school'"
                 @select="selectPrimary"
               />
             </div>
@@ -360,7 +363,16 @@ function trapFocus(event: KeyboardEvent): void {
                   </span>
                 </div>
                 <p class="mt-1 text-sm font-medium text-gray-700">{{ togetherHistoryLabel(candidate) }}</p>
-                <p class="mt-0.5 text-xs text-gray-500">{{ assignmentHistoryLabel(candidate) }}</p>
+                <p class="mt-0.5 text-xs text-gray-500">
+                  <AssignmentWeekTooltip
+                    v-if="role === 'school' && candidate.lastAssignment"
+                    :assignment="candidate.lastAssignment"
+                    :participant-id="candidate.participant.id"
+                  >
+                    {{ assignmentHistoryLabel(candidate) }}
+                  </AssignmentWeekTooltip>
+                  <template v-else>{{ assignmentHistoryLabel(candidate) }}</template>
+                </p>
               </button>
             </div>
           </div>

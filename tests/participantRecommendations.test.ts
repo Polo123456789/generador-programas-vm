@@ -46,6 +46,7 @@ describe('participant recommendations', () => {
 
     expect(ranked.map(candidate => candidate.participant.id)).toEqual(['carla', 'diego', 'beatriz', 'ana'])
     expect(ranked[2]?.lastAssignmentDate).toBe('Semana 1')
+    expect(ranked[2]?.lastAssignment?.id).toBe('beatriz-old')
   })
 
   test('treats migrated school history as relevant', () => {

@@ -8,6 +8,7 @@ import { inferWeekCalendarOrder, parseWeekStart } from './weekDates'
 
 export interface ParticipantRecommendation {
   participant: Participant
+  lastAssignment: AssignmentHistoryRecord | null
   lastAssignmentDate: string | null
   lastTimeTogether: string | null
 }
@@ -49,11 +50,15 @@ export function rankParticipants({
   const relevantHistory = historyBeforeTarget(history, target)
   return participants
     .filter(participant => isParticipantEligible(participant, role))
-    .map(participant => ({
-      participant,
-      lastAssignmentDate: latestAssignment(relevantHistory, participant.id, role, target)?.weekDate ?? null,
-      lastTimeTogether: null,
-    }))
+    .map((participant) => {
+      const lastAssignment = latestAssignment(relevantHistory, participant.id, role, target) ?? null
+      return {
+        participant,
+        lastAssignment,
+        lastAssignmentDate: lastAssignment?.weekDate ?? null,
+        lastTimeTogether: null,
+      }
+    })
     .sort((left, right) => (
       compareHistoryDates(
         latestAssignment(relevantHistory, left.participant.id, role, target),
@@ -91,11 +96,15 @@ export function rankPartners({
       && participant.gender === primary.gender
       && isParticipantEligible(participant, role)
     ))
-    .map(participant => ({
-      participant,
-      lastAssignmentDate: latestAssignment(relevantHistory, participant.id, role, target)?.weekDate ?? null,
-      lastTimeTogether: latestPairAssignment(relevantHistory, primaryId, participant.id, target)?.weekDate ?? null,
-    }))
+    .map((participant) => {
+      const lastAssignment = latestAssignment(relevantHistory, participant.id, role, target) ?? null
+      return {
+        participant,
+        lastAssignment,
+        lastAssignmentDate: lastAssignment?.weekDate ?? null,
+        lastTimeTogether: latestPairAssignment(relevantHistory, primaryId, participant.id, target)?.weekDate ?? null,
+      }
+    })
     .sort((left, right) => {
       const pairComparison = compareHistoryDates(
         latestPairAssignment(relevantHistory, primaryId, left.participant.id, target),
