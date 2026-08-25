@@ -1,4 +1,5 @@
 import { getProgramSlots } from '../programSlots'
+import { countActiveMeetingWeeks } from '../assignments'
 import { getEligibleForSlot } from './helpers'
 import type { SanityCheck, SanityFinding } from './types'
 
@@ -14,7 +15,7 @@ const MIN_WEEKS = 8
 const MIN_COMPARABLE_SLOTS = 20
 
 export const checkHighFrequency: SanityCheck = (context) => {
-  if (context.program.weeks.length < MIN_WEEKS) return []
+  if (countActiveMeetingWeeks(context.program) < MIN_WEEKS) return []
 
   return buildFrequencyStats(context).flatMap((stats): SanityFinding[] => {
     const excess = stats.observed - stats.expected
@@ -43,7 +44,7 @@ export const checkHighFrequency: SanityCheck = (context) => {
 }
 
 export const checkLowFrequency: SanityCheck = (context) => {
-  if (context.program.weeks.length < MIN_WEEKS) return []
+  if (countActiveMeetingWeeks(context.program) < MIN_WEEKS) return []
 
   return buildFrequencyStats(context).flatMap((stats): SanityFinding[] => {
     const deficit = stats.expected - stats.observed

@@ -1,4 +1,5 @@
 import type { MeetingProgram } from './assignments'
+import { isCancelledMeeting, isCircuitOverseerVisit } from './assignments'
 import type { ParticipantRole } from './participants'
 
 export type SchoolPosition = 'conductor' | 'student'
@@ -16,6 +17,8 @@ export interface ProgramSlot {
 
 export function getProgramSlots(program: MeetingProgram): ProgramSlot[] {
   return program.weeks.flatMap((week, weekIndex) => {
+    if (isCancelledMeeting(week)) return []
+
     const prefix = `${weekIndex}`
     const slots: ProgramSlot[] = [
       makeSlot(prefix, weekIndex, week.date, 'president', 'Presidente', week.presidentId),
@@ -62,11 +65,14 @@ export function getProgramSlots(program: MeetingProgram): ProgramSlot[] {
       ))
     })
 
-    slots.push(
-      makeSlot(prefix, weekIndex, week.date, 'bookConductor', 'Conductor del estudio bíblico', week.bookConductorId),
-      makeSlot(prefix, weekIndex, week.date, 'bookReader', 'Lector del estudio bíblico', week.bookReaderId),
-      makeSlot(prefix, weekIndex, week.date, 'finalPrayer', 'Oración final', week.finalPrayerId),
-    )
+    if (!isCircuitOverseerVisit(week)) {
+      slots.push(
+        makeSlot(prefix, weekIndex, week.date, 'bookConductor', 'Conductor del estudio bíblico', week.bookConductorId),
+        makeSlot(prefix, weekIndex, week.date, 'bookReader', 'Lector del estudio bíblico', week.bookReaderId),
+      )
+    }
+
+    slots.push(makeSlot(prefix, weekIndex, week.date, 'finalPrayer', 'Oración final', week.finalPrayerId))
 
     return slots
   })

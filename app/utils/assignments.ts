@@ -36,6 +36,17 @@ export interface SchoolAssignment {
 
 export type SchoolStudentCount = 1 | 2
 
+export interface CancelledMeetingException {
+  type: 'cancelled'
+}
+
+export interface CircuitOverseerVisitException {
+  type: 'circuitOverseerVisit'
+  serviceTalkSpeaker: string
+}
+
+export type MeetingException = CancelledMeetingException | CircuitOverseerVisitException
+
 export interface ProgramWeek {
   date: string
   songs: number[]
@@ -49,6 +60,7 @@ export interface ProgramWeek {
   bookConductorId: string | null
   bookReaderId: string | null
   finalPrayerId: string | null
+  meetingException?: MeetingException
 }
 
 export interface MeetingProgram {
@@ -65,6 +77,18 @@ export function createMeetingProgram(weeks: ProgramWeek[], calendarYear: number)
     calendarYear,
     weeks,
   }
+}
+
+export function isCancelledMeeting(week: ProgramWeek): boolean {
+  return week.meetingException?.type === 'cancelled'
+}
+
+export function isCircuitOverseerVisit(week: ProgramWeek): boolean {
+  return week.meetingException?.type === 'circuitOverseerVisit'
+}
+
+export function countActiveMeetingWeeks(program: MeetingProgram): number {
+  return program.weeks.filter(week => !isCancelledMeeting(week)).length
 }
 
 export async function fetchAssignments(url: string): Promise<ProgramWeek[]> {

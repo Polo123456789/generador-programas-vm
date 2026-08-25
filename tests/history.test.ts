@@ -78,3 +78,44 @@ test('program history stores the meeting date independently from the import date
 
   expect(history[0]?.calendarOrder).toBe(Date.UTC(2026, 7, 17))
 })
+
+test('program history omits cancelled meetings and hidden book assignments during a visit', () => {
+  const cancelled = historyWeek('Semana cancelada')
+  cancelled.presidentId = 'cancelado'
+  cancelled.meetingException = { type: 'cancelled' }
+
+  const visit = historyWeek('Semana de visita')
+  visit.presidentId = 'presidente'
+  visit.bookConductorId = 'conductor-guardado'
+  visit.bookReaderId = 'lector-guardado'
+  visit.meetingException = {
+    type: 'circuitOverseerVisit',
+    serviceTalkSpeaker: 'Nombre fuera del padrón',
+  }
+
+  const history = buildProgramHistory({
+    id: 'program',
+    createdAt: 1_000,
+    calendarYear: 2026,
+    weeks: [cancelled, visit],
+  })
+
+  expect(history.map(record => record.participantIds[0])).toEqual(['presidente'])
+})
+
+function historyWeek(date: string): MeetingProgram['weeks'][number] {
+  return {
+    date,
+    songs: [1, 2, 3],
+    presidentId: null,
+    assignedReading: '',
+    treasures: { title: 'Tesoros', duration: 10, participantId: null },
+    gems: { title: 'Perlas', duration: 10, participantId: null },
+    reading: { title: 'Lectura', duration: 4, participantId: null },
+    school: [],
+    livingSpeeches: [],
+    bookConductorId: null,
+    bookReaderId: null,
+    finalPrayerId: null,
+  }
+}

@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { SchoolAssignment, SchoolStudentCount } from '~/utils/assignments'
-import { fetchAssignments, getSchoolStudentCount, setSchoolStudentCount } from '~/utils/assignments'
+import type { ProgramWeek, SchoolAssignment, SchoolStudentCount } from '~/utils/assignments'
+import {
+  fetchAssignments,
+  getSchoolStudentCount,
+  isCancelledMeeting,
+  isCircuitOverseerVisit,
+  setSchoolStudentCount,
+} from '~/utils/assignments'
 import type { SanityFinding } from '~/utils/sanity'
 import { runSanityChecks } from '~/utils/sanity'
 import { extractCalendarYear, getWeekCalendarOrder } from '~/utils/weekDates'
@@ -52,6 +58,9 @@ const sanityFindings = computed(() => (
     ? runSanityChecks({ program: program.value, participants: participants.value })
     : []
 ))
+const hasActiveWeeks = computed(() => (
+  program.value?.weeks.some(week => !isCancelledMeeting(week)) ?? false
+))
 
 function findingsForSlots(...slotKeys: string[]): SanityFinding[] {
   const targetSlots = new Set(slotKeys)
@@ -65,6 +74,24 @@ function updateSchoolStudentCount(
   studentCount: SchoolStudentCount,
 ): void {
   setSchoolStudentCount(assignment, studentCount)
+}
+
+function cancelMeeting(week: ProgramWeek): void {
+  week.meetingException = { type: 'cancelled' }
+}
+
+function markCircuitOverseerVisit(week: ProgramWeek): void {
+  week.meetingException = { type: 'circuitOverseerVisit', serviceTalkSpeaker: '' }
+}
+
+function clearMeetingException(week: ProgramWeek): void {
+  delete week.meetingException
+}
+
+function updateServiceTalkSpeaker(week: ProgramWeek, value: string): void {
+  if (week.meetingException?.type === 'circuitOverseerVisit') {
+    week.meetingException.serviceTalkSpeaker = value
+  }
 }
 
 watch(program, (currentProgram) => {
@@ -113,11 +140,52 @@ async function fetchAllAssignments(): Promise<void> {
     </div>
 
     <template v-else>
-      <div v-for="(week, weekIndex) in program.weeks" :key="weekIndex" class="dont-break mb-8">
-        <table class="w-full border-collapse pt-4">
+      <div
+        v-for="(week, weekIndex) in program.weeks"
+        :key="weekIndex"
+        class="dont-break mb-8"
+        :class="{ 'dont-print': isCancelledMeeting(week) }"
+      >
+        <div
+          v-if="isCancelledMeeting(week)"
+          class="flex items-center justify-between gap-4 rounded-lg border border-gray-300 bg-gray-50 px-4 py-3"
+        >
+          <div>
+            <span class="font-semibold text-gray-900">{{ week.date }}</span>
+            <span class="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-700">
+              Reunión cancelada
+            </span>
+          </div>
+          <button
+            type="button"
+            class="rounded border border-gray-400 bg-white px-3 py-1.5 text-sm font-semibold text-gray-800 hover:bg-gray-100"
+            @click="clearMeetingException(week)"
+          >
+            Restaurar
+          </button>
+        </div>
+
+        <table v-else class="w-full border-collapse pt-4">
           <tbody>
             <tr>
-              <td class="text-lg font-bold" colspan="2">{{ week.date }} | {{ week.assignedReading }}</td>
+              <td class="text-lg font-bold" colspan="2">
+                <div class="flex items-center gap-2">
+                  <span class="min-w-0">{{ week.date }} | {{ week.assignedReading }}</span>
+                  <span
+                    v-if="isCircuitOverseerVisit(week)"
+                    class="dont-print shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800"
+                  >
+                    Visita del superintendente
+                  </span>
+                  <WeekExceptionMenu
+                    :exception="week.meetingException"
+                    :week-date="week.date"
+                    @cancel-meeting="cancelMeeting(week)"
+                    @mark-circuit-overseer-visit="markCircuitOverseerVisit(week)"
+                    @clear-circuit-overseer-visit="clearMeetingException(week)"
+                  />
+                </div>
+              </td>
               <td class="pr-2 text-right">
                 Presidente<AssignmentWarningIndicator :findings="findingsForSlots(`${weekIndex}:president`)" />:
               </td>
@@ -251,7 +319,22 @@ async function fetchAllAssignments(): Promise<void> {
                 />
               </td>
             </tr>
-            <tr>
+            <tr v-if="isCircuitOverseerVisit(week)">
+              <td class="py-1">
+                ● Discurso de Servicio (30 mins.)
+              </td>
+              <td class="pr-2 text-right">Encargado:</td>
+              <td colspan="2">
+                <PrintableInput
+                  :model-value="week.meetingException?.type === 'circuitOverseerVisit'
+                    ? week.meetingException.serviceTalkSpeaker
+                    : ''"
+                  :accessible-name="`Encargado del Discurso de Servicio, ${week.date}`"
+                  @update:model-value="updateServiceTalkSpeaker(week, $event)"
+                />
+              </td>
+            </tr>
+            <tr v-else>
               <td class="py-1">
                 ● Estudio bíblico de la congregación (30 mins.)<AssignmentWarningIndicator
                   :findings="findingsForSlots(`${weekIndex}:bookConductor`, `${weekIndex}:bookReader`)"
@@ -310,21 +393,23 @@ async function fetchAllAssignments(): Promise<void> {
         </table>
       </div>
 
-      <div v-if="program.weeks.length" class="dont-break mb-8">
+      <div v-if="hasActiveWeeks" class="dont-break mb-8">
         <table class="w-full border-collapse">
           <thead><tr><th colspan="3" class="border border-black bg-amber-700 p-1 text-lg font-bold text-white">Seamos Mejores Maestros</th></tr></thead>
           <tbody>
             <template v-for="(week, weekIndex) in program.weeks" :key="`summary-${weekIndex}`">
-              <tr><td colspan="3" class="border border-black bg-amber-600 p-1 font-bold text-white">{{ week.date }}</td></tr>
-              <tr><td class="border px-2">Lectura</td><td colspan="2" class="border text-center">{{ getParticipantName(week.reading.participantId) }}</td></tr>
-              <tr v-for="(assignment, assignmentIndex) in week.school" :key="`summary-school-${assignmentIndex}`">
-                <td class="border px-2">{{ assignment.title }} ({{ assignment.duration }} mins.)</td>
-                <template v-if="assignment.studentId !== undefined">
-                  <td class="border text-center">{{ getParticipantName(assignment.conductorId) }}</td>
-                  <td class="border text-center">{{ getParticipantName(assignment.studentId) }}</td>
-                </template>
-                <td v-else colspan="2" class="border text-center">{{ getParticipantName(assignment.conductorId) }}</td>
-              </tr>
+              <template v-if="!isCancelledMeeting(week)">
+                <tr><td colspan="3" class="border border-black bg-amber-600 p-1 font-bold text-white">{{ week.date }}</td></tr>
+                <tr><td class="border px-2">Lectura</td><td colspan="2" class="border text-center">{{ getParticipantName(week.reading.participantId) }}</td></tr>
+                <tr v-for="(assignment, assignmentIndex) in week.school" :key="`summary-school-${assignmentIndex}`">
+                  <td class="border px-2">{{ assignment.title }} ({{ assignment.duration }} mins.)</td>
+                  <template v-if="assignment.studentId !== undefined">
+                    <td class="border text-center">{{ getParticipantName(assignment.conductorId) }}</td>
+                    <td class="border text-center">{{ getParticipantName(assignment.studentId) }}</td>
+                  </template>
+                  <td v-else colspan="2" class="border text-center">{{ getParticipantName(assignment.conductorId) }}</td>
+                </tr>
+              </template>
             </template>
           </tbody>
         </table>

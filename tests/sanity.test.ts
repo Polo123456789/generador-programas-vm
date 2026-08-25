@@ -64,6 +64,20 @@ describe('sanity checks', () => {
     })
   })
 
+  test('a cancelled week breaks calendar consecutivity', () => {
+    const first = week('Semana 1')
+    const cancelled = week('Semana 2')
+    const third = week('Semana 3')
+    first.presidentId = 'a'
+    cancelled.meetingException = { type: 'cancelled' }
+    third.presidentId = 'a'
+
+    expect(checkConsecutiveAssignments({
+      program: program([first, cancelled, third]),
+      participants: [],
+    })).toEqual([])
+  })
+
   test('role balance starts at three two-person assignments in one role', () => {
     const weeks = ['1', '2', '3'].map(date => week(date, [
       { title: 'Revisita', duration: 4, conductorId: 'a', studentId: 'b' },
@@ -110,6 +124,20 @@ describe('sanity checks', () => {
       '1:school:0:conductor',
       '1:school:0:student',
     ])
+  })
+
+  test('cancelled meetings are omitted from direct school controls', () => {
+    const activeWeeks = ['1', '2'].map(date => week(date, [
+      { title: 'Revisita', duration: 4, conductorId: 'a', studentId: 'b' },
+    ]))
+    const cancelled = week('3', [
+      { title: 'Revisita', duration: 4, conductorId: 'a', studentId: 'b' },
+    ])
+    cancelled.meetingException = { type: 'cancelled' }
+
+    const context = { program: program([...activeWeeks, cancelled]), participants: [] }
+    expect(checkRoleBalance(context)).toEqual([])
+    expect(checkRepeatedPairs(context)[0]?.reason).toContain('2 veces')
   })
 
   test('hidden or ineligible assignments remain present and are reported', () => {

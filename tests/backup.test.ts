@@ -96,3 +96,39 @@ test('backup parser rejects duplicate and unknown participant references', () =>
   unknownHistoryReference.assignmentHistory[0]!.participantIds = ['persona-inexistente']
   expect(() => parseBackup(JSON.stringify(unknownHistoryReference))).toThrow('participante inexistente')
 })
+
+test('backup round trip preserves meeting exceptions and accepts older weeks without them', () => {
+  const visitBackup = createBackup(program, participants, assignmentHistory, '')
+  visitBackup.program!.weeks[0]!.meetingException = {
+    type: 'circuitOverseerVisit',
+    serviceTalkSpeaker: 'Nombre escrito a mano',
+  }
+  expect(parseBackup(JSON.stringify(visitBackup)).program?.weeks[0]?.meetingException).toEqual({
+    type: 'circuitOverseerVisit',
+    serviceTalkSpeaker: 'Nombre escrito a mano',
+  })
+
+  const oldBackup = createBackup(program, participants, assignmentHistory, '')
+  expect(parseBackup(JSON.stringify(oldBackup)).program?.weeks[0]?.meetingException).toBeUndefined()
+})
+
+test('backup parser rejects malformed meeting exceptions', () => {
+  const malformed = createBackup(program, participants, assignmentHistory, '')
+  malformed.program!.weeks[0]!.meetingException = {
+    type: 'circuitOverseerVisit',
+    serviceTalkSpeaker: 123,
+  } as unknown as NonNullable<MeetingProgram['weeks'][number]['meetingException']>
+
+  expect(() => parseBackup(JSON.stringify(malformed))).toThrow('formato inválido')
+})
+
+test('backup parser validates assignments preserved behind meeting exceptions', () => {
+  const visit = createBackup(program, participants, assignmentHistory, '')
+  visit.program!.weeks[0]!.meetingException = {
+    type: 'circuitOverseerVisit',
+    serviceTalkSpeaker: 'Nombre libre',
+  }
+  visit.program!.weeks[0]!.bookConductorId = 'persona-inexistente'
+
+  expect(() => parseBackup(JSON.stringify(visit))).toThrow('participante inexistente')
+})

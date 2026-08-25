@@ -1,9 +1,11 @@
 import type { SanityCheck } from './types'
+import { isCancelledMeeting } from '../assignments'
 
 export const checkRepeatedPairs: SanityCheck = ({ program }) => {
   const pairs = new Map<string, Array<{ slotKeys: string[], week: string, title: string }>>()
 
   program.weeks.forEach((week, weekIndex) => {
+    if (isCancelledMeeting(week)) return
     week.school.forEach((assignment, assignmentIndex) => {
       if (!assignment.conductorId || !assignment.studentId) return
       const pair = [assignment.conductorId, assignment.studentId].sort()

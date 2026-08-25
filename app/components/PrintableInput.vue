@@ -1,9 +1,14 @@
 <script setup lang="ts">
-const text = defineModel<string>();
+interface Props {
+  accessibleName?: string
+}
+
+defineProps<Props>()
+const text = defineModel<string>({ required: true })
 </script>
 
 <template>
-    <input v-model="text" type="text">
+    <input v-model="text" type="text" :aria-label="accessibleName">
 </template>
 
 <style scoped>

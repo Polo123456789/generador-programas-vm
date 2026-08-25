@@ -1,7 +1,6 @@
 import type { MeetingProgram, ProgramWeek, SchoolAssignment, SingleAssignment } from './assignments'
 import type { AssignmentHistoryRecord, Participant, ParticipantRole } from './participants'
 import { PARTICIPANT_ROLES } from './participants'
-import { getProgramSlots } from './programSlots'
 import { inferWeekCalendarOrder, resolveCalendarYear } from './weekDates'
 
 export const BACKUP_VERSION = 1
@@ -81,9 +80,7 @@ export function parseBackup(raw: string): AppBackup {
   }
 
   if (value.program) {
-    const assignedIds = getProgramSlots(value.program)
-      .map(slot => slot.participantId)
-      .filter((id): id is string => Boolean(id))
+    const assignedIds = getStoredAssignedParticipantIds(value.program)
     assertKnownParticipants(assignedIds, participantIds, 'el programa')
   }
 
@@ -144,6 +141,14 @@ function isProgramWeek(value: unknown): value is ProgramWeek {
     && isNullableString(value.bookConductorId)
     && isNullableString(value.bookReaderId)
     && isNullableString(value.finalPrayerId)
+    && isMeetingException(value.meetingException)
+}
+
+function isMeetingException(value: unknown): boolean {
+  if (value === undefined) return true
+  if (!isRecord(value) || typeof value.type !== 'string') return false
+  if (value.type === 'cancelled') return true
+  return value.type === 'circuitOverseerVisit' && typeof value.serviceTalkSpeaker === 'string'
 }
 
 function isSingleAssignment(value: unknown): value is SingleAssignment {
@@ -190,6 +195,23 @@ function isHistoryRecord(value: unknown): value is AssignmentHistoryRecord {
     && (value.chronologicalOrder === undefined || (typeof value.chronologicalOrder === 'number' && Number.isFinite(value.chronologicalOrder)))
     && typeof value.updatedAt === 'number'
     && Number.isFinite(value.updatedAt)
+}
+
+function getStoredAssignedParticipantIds(program: MeetingProgram): string[] {
+  return program.weeks.flatMap((week) => {
+    const ids: Array<string | null | undefined> = [
+      week.presidentId,
+      week.treasures.participantId,
+      week.gems.participantId,
+      week.reading.participantId,
+      ...week.school.flatMap(assignment => [assignment.conductorId, assignment.studentId]),
+      ...week.livingSpeeches.map(assignment => assignment.participantId),
+      week.bookConductorId,
+      week.bookReaderId,
+      week.finalPrayerId,
+    ]
+    return ids.filter((id): id is string => Boolean(id))
+  })
 }
 
 function assertKnownParticipants(

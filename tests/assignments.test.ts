@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import type { SchoolAssignment } from '../app/utils/assignments'
+import type { MeetingProgram, ProgramWeek, SchoolAssignment } from '../app/utils/assignments'
 import {
+  countActiveMeetingWeeks,
   getSchoolStudentCount,
   inferSchoolStudentCount,
+  isCancelledMeeting,
+  isCircuitOverseerVisit,
   setSchoolStudentCount,
 } from '../app/utils/assignments'
 
@@ -41,3 +44,41 @@ describe('school assignment student count', () => {
     expect(assignment.conductorId).toBe('principal')
   })
 })
+
+describe('meeting exceptions', () => {
+  test('treats old weeks as regular and counts only meetings that will occur', () => {
+    const regular = programWeek('Semana 1')
+    const cancelled = programWeek('Semana 2')
+    cancelled.meetingException = { type: 'cancelled' }
+    const visit = programWeek('Semana 3')
+    visit.meetingException = { type: 'circuitOverseerVisit', serviceTalkSpeaker: 'Hermano visitante' }
+    const program: MeetingProgram = {
+      id: 'program',
+      createdAt: 1,
+      calendarYear: 2026,
+      weeks: [regular, cancelled, visit],
+    }
+
+    expect(isCancelledMeeting(regular)).toBe(false)
+    expect(isCancelledMeeting(cancelled)).toBe(true)
+    expect(isCircuitOverseerVisit(visit)).toBe(true)
+    expect(countActiveMeetingWeeks(program)).toBe(2)
+  })
+})
+
+function programWeek(date: string): ProgramWeek {
+  return {
+    date,
+    songs: [1, 2, 3],
+    presidentId: null,
+    assignedReading: '',
+    treasures: { title: 'Tesoros', duration: 10, participantId: null },
+    gems: { title: 'Perlas', duration: 10, participantId: null },
+    reading: { title: 'Lectura', duration: 4, participantId: null },
+    school: [],
+    livingSpeeches: [],
+    bookConductorId: null,
+    bookReaderId: null,
+    finalPrayerId: null,
+  }
+}

@@ -1,4 +1,5 @@
 import type { SanityCheck } from './types'
+import { isCancelledMeeting } from '../assignments'
 
 interface RoleParticipation {
   role: 'Conductor' | 'Estudiante'
@@ -11,6 +12,7 @@ export const checkRoleBalance: SanityCheck = ({ program }) => {
   const roles = new Map<string, RoleParticipation[]>()
 
   program.weeks.forEach((week, weekIndex) => {
+    if (isCancelledMeeting(week)) return
     week.school.forEach((assignment, assignmentIndex) => {
       if (assignment.studentId === undefined) return
       const slotPrefix = `${weekIndex}:school:${assignmentIndex}`
