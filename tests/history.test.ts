@@ -1,6 +1,29 @@
 import { expect, test } from 'bun:test'
 import type { MeetingProgram } from '../app/utils/assignments'
-import { buildProgramHistory } from '../app/utils/history'
+import { buildProgramHistory, getLastAssignmentDateFromHistory } from '../app/utils/history'
+
+test('last assignment uses the meeting calendar instead of import time', () => {
+  expect(getLastAssignmentDateFromHistory([
+    {
+      id: 'newer-import',
+      participantIds: ['a'],
+      assignmentRole: 'reading',
+      assignmentTitle: 'Lectura',
+      weekDate: '5-11 de enero',
+      calendarOrder: Date.UTC(2026, 0, 5),
+      updatedAt: Date.UTC(2026, 8, 1),
+    },
+    {
+      id: 'newer-meeting',
+      participantIds: ['a'],
+      assignmentRole: 'reading',
+      assignmentTitle: 'Lectura',
+      weekDate: '7-13 de septiembre',
+      calendarOrder: Date.UTC(2026, 8, 7),
+      updatedAt: Date.UTC(2026, 0, 1),
+    },
+  ], 'a')).toBe('7-13 de septiembre')
+})
 
 test('program history stores a two-person assignment once in role order', () => {
   const program: MeetingProgram = {

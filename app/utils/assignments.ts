@@ -93,6 +93,9 @@ export function countActiveMeetingWeeks(program: MeetingProgram): number {
 
 export async function fetchAssignments(url: string): Promise<ProgramWeek[]> {
   const weeks = await extractWeeks(url)
+  if (weeks.length === 0) {
+    throw new Error('No se encontraron semanas del programa en el enlace proporcionado.')
+  }
   const results: ProgramWeek[] = []
 
   for (const week of weeks) {

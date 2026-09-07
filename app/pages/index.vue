@@ -104,13 +104,21 @@ async function fetchAllAssignments(): Promise<void> {
   assignmentsError.value = ''
   try {
     const calendarYear = extractCalendarYear(url.value) ?? new Date().getFullYear()
-    replaceProgram(await fetchAssignments(url.value), calendarYear)
+    const weeks = await fetchAssignments(url.value)
+    if (program.value && !window.confirm('Cargar este programa reemplazará el borrador actual. ¿Deseas continuar?')) return
+    replaceProgram(weeks, calendarYear)
   } catch (error) {
     console.error('[fetchAllAssignments] Error cargando asignaciones:', error)
     assignmentsError.value = 'No se pudo cargar el programa. Revisa el enlace o intenta de nuevo.'
   } finally {
     loadingAssignments.value = false
   }
+}
+
+function confirmClearProgram(): void {
+  if (!program.value) return
+  if (!window.confirm('Se borrará el programa actual y sus asignaciones. ¿Deseas continuar?')) return
+  clearProgram()
 }
 </script>
 
@@ -126,7 +134,7 @@ async function fetchAllAssignments(): Promise<void> {
     <div class="dont-print flex items-center gap-2 p-4">
       <input v-model="url" class="flex-1 rounded border border-gray-300 px-2 py-1" type="url" placeholder="URL de Vida y Ministerio">
       <Button :disabled="loadingAssignments" @click="fetchAllAssignments">Cargar</Button>
-      <Button @click="clearProgram">Borrar</Button>
+      <Button :disabled="!program" @click="confirmClearProgram">Borrar</Button>
     </div>
     <div v-if="assignmentsError" class="dont-print px-4 pb-2 text-sm text-red-700">{{ assignmentsError }}</div>
     <div class="dont-print px-4 pb-3 text-sm" :class="lastSaveError ? 'text-red-700' : 'text-gray-600'">

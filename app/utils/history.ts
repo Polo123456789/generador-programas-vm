@@ -1,7 +1,7 @@
 import type { MeetingProgram } from './assignments'
-import type { AssignmentHistoryRecord } from './participants'
+import type { AssignmentHistoryRecord, ParticipantRole } from './participants'
 import { getProgramSlots } from './programSlots'
-import { getWeekCalendarOrder } from './weekDates'
+import { getWeekCalendarOrder, inferWeekCalendarOrder } from './weekDates'
 
 export function buildProgramHistory(program: MeetingProgram): AssignmentHistoryRecord[] {
   const slots = getProgramSlots(program)
@@ -51,4 +51,26 @@ export function buildProgramHistory(program: MeetingProgram): AssignmentHistoryR
   }
 
   return records
+}
+
+export function getLastAssignmentDateFromHistory(
+  history: AssignmentHistoryRecord[],
+  participantId: string,
+  role?: ParticipantRole,
+): string | null {
+  const records = history
+    .filter(record => (
+      record.participantIds.includes(participantId)
+      && (!role || record.assignmentRole === role)
+    ))
+    .sort((left, right) => getHistoryOrder(right) - getHistoryOrder(left))
+
+  return records[0]?.weekDate ?? null
+}
+
+function getHistoryOrder(record: AssignmentHistoryRecord): number {
+  return record.calendarOrder
+    ?? inferWeekCalendarOrder(record.weekDate, record.updatedAt)
+    ?? record.chronologicalOrder
+    ?? record.updatedAt
 }

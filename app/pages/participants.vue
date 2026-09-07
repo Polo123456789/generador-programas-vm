@@ -12,6 +12,7 @@ const {
   migrateLegacyData,
   participants,
   assignmentHistory,
+  storageError,
   renameParticipant,
   replaceParticipantData,
   setParticipantRoles,
@@ -214,6 +215,10 @@ function cancelRename(): void {
         <p v-if="backupError" class="mt-2 text-sm text-red-700">{{ backupError }}</p>
         <p v-if="backupMessage" class="mt-2 text-sm text-green-700">{{ backupMessage }}</p>
       </section>
+
+      <p v-if="storageError" role="alert" class="mb-6 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+        {{ storageError }}
+      </p>
 
       <section class="mb-6 rounded-lg bg-gray-50 p-4">
         <h2 class="mb-3 text-lg font-semibold">Añadir participante</h2>

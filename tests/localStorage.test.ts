@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, test } from 'bun:test'
 import { effectScope } from 'vue'
-import { useLocalStorage } from '../app/composables/useLocalStorage'
+import { useLocalStorage, useLocalStorageError } from '../app/composables/useLocalStorage'
 
 const values = new Map<string, string>()
 const originalWindow = globalThis.window
@@ -35,4 +35,21 @@ test('storage watcher survives the component scope that first requested a key', 
 
   value.value = 'after-navigation'
   expect(values.get(key)).toBe(JSON.stringify('after-navigation'))
+})
+
+test('storage write failures are exposed to the interface', () => {
+  const key = `storage-error-${Date.now()}`
+  const value = useLocalStorage(key, 'initial')
+  const error = useLocalStorageError(key)
+  const originalSetItem = window.localStorage.setItem
+  window.localStorage.setItem = () => {
+    throw new Error('Quota exceeded')
+  }
+
+  value.value = 'not-persisted'
+  expect(error.value).toContain('No se pudieron guardar')
+
+  window.localStorage.setItem = originalSetItem
+  value.value = 'persisted'
+  expect(error.value).toBeNull()
 })

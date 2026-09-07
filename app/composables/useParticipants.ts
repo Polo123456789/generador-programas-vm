@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 import { computed, ref } from 'vue'
 import type { MeetingProgram } from '~/utils/assignments'
-import { buildProgramHistory } from '~/utils/history'
+import { buildProgramHistory, getLastAssignmentDateFromHistory } from '~/utils/history'
 import type {
   AssignmentHistoryRecord,
   Participant,
@@ -68,6 +68,9 @@ export function useParticipants() {
   const participants = globalParticipants!
   const assignmentHistory = globalHistory!
   const legacyMigrationAvailable = globalLegacyMigrationAvailable!
+  const participantsStorageError = useLocalStorageError(PARTICIPANTS_KEY)
+  const historyStorageError = useLocalStorageError(HISTORY_KEY)
+  const storageError = computed(() => participantsStorageError.value ?? historyStorageError.value)
 
   const participantsById = computed(() => new Map(
     participants.value.map(participant => [participant.id, participant]),
@@ -143,14 +146,7 @@ export function useParticipants() {
   }
 
   function getLastAssignmentDate(participantId: string, role?: ParticipantRole): string | null {
-    const records = assignmentHistory.value
-      .filter(record => (
-        record.participantIds.includes(participantId)
-        && (!role || record.assignmentRole === role)
-      ))
-      .sort((left, right) => getHistoryOrder(right) - getHistoryOrder(left))
-
-    return records[0]?.weekDate ?? null
+    return getLastAssignmentDateFromHistory(assignmentHistory.value, participantId, role)
   }
 
   function getLastTimeTogether(firstId: string, secondId: string): string | null {
@@ -236,6 +232,7 @@ export function useParticipants() {
   return {
     participants,
     assignmentHistory,
+    storageError,
     legacyMigrationAvailable,
     addParticipant,
     getEligibleParticipants,

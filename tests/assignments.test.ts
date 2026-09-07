@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import type { MeetingProgram, ProgramWeek, SchoolAssignment } from '../app/utils/assignments'
 import {
   countActiveMeetingWeeks,
+  fetchAssignments,
   getSchoolStudentCount,
   inferSchoolStudentCount,
   isCancelledMeeting,
@@ -43,6 +44,16 @@ describe('school assignment student count', () => {
     expect(assignment.studentId).toBeNull()
     expect(assignment.conductorId).toBe('principal')
   })
+})
+
+test('rejects a source page without program weeks', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = (() => Promise.resolve(new Response('<html><body>Sin programa</body></html>'))) as typeof fetch
+  try {
+    await expect(fetchAssignments('https://example.test/2026')).rejects.toThrow('No se encontraron semanas')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })
 
 describe('meeting exceptions', () => {
