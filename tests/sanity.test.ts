@@ -149,6 +149,30 @@ describe('sanity checks', () => {
     })[0]?.slotKeys).toEqual(['0:president'])
   })
 
+  test('school eligibility matches the selector rules', () => {
+    const woman: Participant = {
+      id: 'woman',
+      name: 'Woman',
+      gender: 'F',
+      hidden: false,
+      eligibleRoles: ['school'],
+    }
+    const man = participant('man')
+    const currentWeek = week('Semana 1', [
+      { title: 'Discurso', duration: 5, conductorId: 'woman' },
+      { title: 'Revisita', duration: 4, conductorId: 'man', studentId: 'man' },
+    ])
+
+    expect(checkEligibilityMismatch({
+      program: program([currentWeek]),
+      participants: [woman, man],
+    }).map(finding => finding.slotKeys[0])).toEqual([
+      '0:school:0:conductor',
+      '0:school:1:conductor',
+      '0:school:1:student',
+    ])
+  })
+
   test('frequency rules stay quiet before eight weeks', () => {
     const context = {
       program: program(Array.from({ length: 7 }, (_, index) => week(String(index)))),

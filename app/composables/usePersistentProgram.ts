@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import { onScopeDispose, ref, watch } from 'vue'
+import { effectScope, ref, watch } from 'vue'
 import type { MeetingProgram, ProgramWeek } from '~/utils/assignments'
 import { createMeetingProgram } from '~/utils/assignments'
 import { resolveCalendarYear } from '~/utils/weekDates'
@@ -22,8 +22,7 @@ const globalLastSaveError = ref<string | null>(null)
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let lastSavedPayload: string | null = null
 let storageInitialized = false
-let storageUsageCount = 0
-let removeStorageListeners: (() => void) | null = null
+const storageScope = effectScope(true)
 
 export function usePersistentProgram() {
   globalProgram ??= ref<MeetingProgram | null>(null)
@@ -143,7 +142,9 @@ export function usePersistentProgram() {
     loadMeta()
     if (!stored && backup) saveNow()
 
-    watch(program, scheduleSave, { deep: true, flush: 'sync' })
+    storageScope.run(() => {
+      watch(program, scheduleSave, { deep: true, flush: 'sync' })
+    })
 
     const handleVisibilityChange = (): void => {
       if (document.visibilityState === 'hidden') saveNow()
@@ -152,24 +153,7 @@ export function usePersistentProgram() {
     window.addEventListener('beforeunload', saveNow)
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
-    removeStorageListeners = () => {
-      window.removeEventListener('pagehide', saveNow)
-      window.removeEventListener('beforeunload', saveNow)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
   }
-
-  storageUsageCount += 1
-  onScopeDispose(() => {
-    storageUsageCount -= 1
-    if (storageUsageCount <= 0) {
-      saveNow()
-      removeStorageListeners?.()
-      removeStorageListeners = null
-      storageInitialized = false
-      storageUsageCount = 0
-    }
-  })
 
   return {
     program,

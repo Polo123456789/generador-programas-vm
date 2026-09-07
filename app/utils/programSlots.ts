@@ -1,4 +1,4 @@
-import type { MeetingProgram } from './assignments'
+import type { MeetingProgram, SchoolStudentCount } from './assignments'
 import { isCancelledMeeting, isCircuitOverseerVisit } from './assignments'
 import type { ParticipantRole } from './participants'
 
@@ -13,6 +13,7 @@ export interface ProgramSlot {
   participantId: string | null
   partnerId?: string | null
   schoolPosition?: SchoolPosition
+  schoolStudentCount?: SchoolStudentCount
 }
 
 export function getProgramSlots(program: MeetingProgram): ProgramSlot[] {
@@ -38,6 +39,7 @@ export function getProgramSlots(program: MeetingProgram): ProgramSlot[] {
         participantId: assignment.conductorId,
         partnerId: assignment.studentId,
         schoolPosition: 'conductor',
+        schoolStudentCount: assignment.studentId === undefined ? 1 : 2,
       })
 
       if (assignment.studentId !== undefined) {
@@ -50,6 +52,7 @@ export function getProgramSlots(program: MeetingProgram): ProgramSlot[] {
           participantId: assignment.studentId,
           partnerId: assignment.conductorId,
           schoolPosition: 'student',
+          schoolStudentCount: 2,
         })
       }
     })

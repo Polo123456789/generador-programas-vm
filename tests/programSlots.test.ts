@@ -27,6 +27,28 @@ describe('program slots for meeting exceptions', () => {
   })
 })
 
+describe('school slot metadata', () => {
+  test('distinguishes one-person and two-person assignments', () => {
+    const currentWeek = week()
+    currentWeek.school = [
+      { title: 'Discurso', duration: 5, conductorId: 'a' },
+      { title: 'Revisita', duration: 4, conductorId: 'b', studentId: null },
+    ]
+
+    const schoolSlots = getProgramSlots(program(currentWeek))
+      .filter(slot => slot.role === 'school')
+
+    expect(schoolSlots.map(slot => ({
+      key: slot.key,
+      studentCount: slot.schoolStudentCount,
+    }))).toEqual([
+      { key: '0:school:0:conductor', studentCount: 1 },
+      { key: '0:school:1:conductor', studentCount: 2 },
+      { key: '0:school:1:student', studentCount: 2 },
+    ])
+  })
+})
+
 function program(programWeek: ProgramWeek): MeetingProgram {
   return {
     id: 'program',

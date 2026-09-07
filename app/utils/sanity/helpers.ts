@@ -16,12 +16,11 @@ export function getEligibleForSlot(slot: ProgramSlot, participants: Participant[
     ? participants.find(participant => participant.id === slot.partnerId)
     : undefined
 
-  return participants.filter(participant => (
-    isParticipantEligible(participant, slot.role)
-    && (
-      slot.role !== 'school'
-      || !partner
-      || participant.gender === partner.gender
-    )
-  ))
+  return participants.filter((participant) => {
+    if (!isParticipantEligible(participant, slot.role)) return false
+    if (slot.role !== 'school') return true
+    if (slot.schoolStudentCount === 1) return participant.gender === 'M'
+    if (!partner) return true
+    return participant.id !== partner.id && participant.gender === partner.gender
+  })
 }
