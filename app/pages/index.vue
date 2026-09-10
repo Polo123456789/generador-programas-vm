@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { ProgramWeek, SchoolAssignment, SchoolStudentCount } from '~/utils/assignments'
 import {
   fetchAssignments,
@@ -43,9 +43,13 @@ const assignmentsError = ref('')
 const weekProgress = computed(() => program.value ? getProgramProgress(program.value) : [])
 const programSlots = computed(() => program.value ? getProgramSlots(program.value) : [])
 const pendingCount = computed(() => weekProgress.value.reduce((sum, week) => sum + week.pending.length, 0))
+let highlightTimer: ReturnType<typeof setTimeout> | undefined
+
+onBeforeUnmount(() => clearTimeout(highlightTimer))
 
 function highlightAssignments(slotKeys: string[]): void {
   if (!import.meta.client) return
+  clearTimeout(highlightTimer)
   const controls = [...new Set(slotKeys.map(assignmentControlId))]
     .map(id => document.getElementById(id))
     .filter((control): control is HTMLElement => control !== null)
@@ -55,6 +59,10 @@ function highlightAssignments(slotKeys: string[]): void {
   // Restart the two pulses even when the same link is selected again.
   void rows[0]!.offsetWidth
   rows.forEach(row => row.classList.add('assignment-highlight'))
+  const pulseDuration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1800
+  highlightTimer = setTimeout(() => {
+    rows.forEach(row => row.classList.remove('assignment-highlight'))
+  }, pulseDuration + 5000)
   rows[0]!.scrollIntoView({ block: 'center' })
   controls[0]?.focus({ preventScroll: true })
 }
