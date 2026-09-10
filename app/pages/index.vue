@@ -12,6 +12,7 @@ import type { SanityFinding } from '~/utils/sanity'
 import { runSanityChecks } from '~/utils/sanity'
 import { extractCalendarYear, getWeekCalendarOrder } from '~/utils/weekDates'
 import { assignmentControlId, getProgramProgress } from '~/utils/programProgress'
+import { getProgramSlots } from '~/utils/programSlots'
 
 const url = useLocalStorage<string>('lastAssignmentsURL', '')
 if (import.meta.client && !url.value) {
@@ -40,6 +41,7 @@ const { getParticipantName, participants, syncProgramHistory } = useParticipants
 const loadingAssignments = ref(false)
 const assignmentsError = ref('')
 const weekProgress = computed(() => program.value ? getProgramProgress(program.value) : [])
+const programSlots = computed(() => program.value ? getProgramSlots(program.value) : [])
 const pendingCount = computed(() => weekProgress.value.reduce((sum, week) => sum + week.pending.length, 0))
 
 function openAssignment(slotKey: string): void {
@@ -161,7 +163,7 @@ function confirmClearProgram(): void {
       {{ saveStatusText }}
     </div>
 
-    <SanityAlerts :findings="sanityFindings" />
+    <SanityAlerts :findings="sanityFindings" :slots="programSlots" @open-assignment="openAssignment" />
 
     <div v-if="!program" class="dont-print px-4 py-16 text-center text-gray-500">
       No hay un programa cargado. Registra participantes y carga un programa para comenzar.
