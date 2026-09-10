@@ -11,6 +11,7 @@ import {
 import type { SanityFinding } from '~/utils/sanity'
 import { runSanityChecks } from '~/utils/sanity'
 import { extractCalendarYear, getWeekCalendarOrder } from '~/utils/weekDates'
+import { assignmentControlId, getProgramProgress } from '~/utils/programProgress'
 
 const url = useLocalStorage<string>('lastAssignmentsURL', '')
 if (import.meta.client && !url.value) {
@@ -38,6 +39,24 @@ const {
 const { getParticipantName, participants, syncProgramHistory } = useParticipants()
 const loadingAssignments = ref(false)
 const assignmentsError = ref('')
+const weekProgress = computed(() => program.value ? getProgramProgress(program.value) : [])
+const pendingCount = computed(() => weekProgress.value.reduce((sum, week) => sum + week.pending.length, 0))
+
+function openAssignment(slotKey: string): void {
+  if (!import.meta.client) return
+  const control = document.getElementById(assignmentControlId(slotKey))
+  control?.scrollIntoView({ block: 'center' })
+  control?.focus({ preventScroll: true })
+  control?.click()
+}
+
+function printProgram(): void {
+  if (!import.meta.client || !hasActiveWeeks.value) return
+  if (pendingCount.value && !window.confirm(
+    `Quedan ${pendingCount.value} asignaciones sin completar. ¿Deseas imprimir de todos modos? Cancela para revisarlas.`,
+  )) return
+  window.print()
+}
 
 function calendarOrderForWeek(weekIndex: number): number {
   const currentProgram = program.value
@@ -131,10 +150,11 @@ function confirmClearProgram(): void {
       </NuxtLink>
     </nav>
 
-    <div class="dont-print flex items-center gap-2 p-4">
+    <div class="dont-print flex flex-wrap items-center gap-2 p-4">
       <input v-model="url" class="flex-1 rounded border border-gray-300 px-2 py-1" type="url" placeholder="URL de Vida y Ministerio">
       <Button :disabled="loadingAssignments" @click="fetchAllAssignments">Cargar</Button>
       <Button :disabled="!program" @click="confirmClearProgram">Borrar</Button>
+      <Button :disabled="!hasActiveWeeks" @click="printProgram">Imprimir / PDF</Button>
     </div>
     <div v-if="assignmentsError" class="dont-print px-4 pb-2 text-sm text-red-700">{{ assignmentsError }}</div>
     <div class="dont-print px-4 pb-3 text-sm" :class="lastSaveError ? 'text-red-700' : 'text-gray-600'">
@@ -148,6 +168,9 @@ function confirmClearProgram(): void {
     </div>
 
     <template v-else>
+      <p v-if="pendingCount" class="only-print font-bold">
+        Programa incompleto: {{ pendingCount }} asignaciones sin completar.
+      </p>
       <div
         v-for="(week, weekIndex) in program.weeks"
         :key="weekIndex"
@@ -173,7 +196,28 @@ function confirmClearProgram(): void {
           </button>
         </div>
 
-        <table v-else class="w-full border-collapse pt-4">
+        <div v-if="!isCancelledMeeting(week)" class="dont-print mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+          <span class="font-semibold">{{ week.date }}</span>
+          <span :class="weekProgress[weekIndex]!.pending.length ? 'text-amber-800' : 'text-green-800'" aria-live="polite">
+            {{ weekProgress[weekIndex]!.completed }} de {{ weekProgress[weekIndex]!.total }} asignaciones completas
+          </span>
+          <progress
+            class="h-2 w-28 accent-green-700"
+            :value="weekProgress[weekIndex]!.completed"
+            :max="weekProgress[weekIndex]!.total || 1"
+            :aria-label="`Progreso de ${week.date}`"
+          />
+          <button
+            v-if="weekProgress[weekIndex]!.pending.length"
+            type="button"
+            class="rounded border border-amber-600 px-3 py-1.5 text-sm font-semibold text-amber-900 hover:bg-amber-50"
+            :aria-label="`Ir a la siguiente pendiente de ${week.date}`"
+            @click="openAssignment(weekProgress[weekIndex]!.pending[0]!.key)"
+          >
+            Ir a la siguiente pendiente
+          </button>
+        </div>
+        <table v-if="!isCancelledMeeting(week)" class="w-full border-collapse pt-4">
           <tbody>
             <tr>
               <td class="text-lg font-bold" colspan="2">
@@ -334,6 +378,7 @@ function confirmClearProgram(): void {
               <td class="pr-2 text-right">Encargado:</td>
               <td colspan="2">
                 <PrintableInput
+                  :id="assignmentControlId(`${weekIndex}:serviceTalkSpeaker`)"
                   :model-value="week.meetingException?.type === 'circuitOverseerVisit'
                     ? week.meetingException.serviceTalkSpeaker
                     : ''"

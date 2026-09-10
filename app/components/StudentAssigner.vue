@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import type { ParticipantRole } from '~/utils/participants'
 import type { ParticipantRecommendation, PartnerRankingPriority } from '~/utils/participantRecommendations'
 import { rankParticipants, rankPartners } from '~/utils/participantRecommendations'
+import { assignmentControlId } from '~/utils/programProgress'
 
 interface Props {
   modelValue: string | null
@@ -189,6 +190,7 @@ function trapFocus(event: KeyboardEvent): void {
       </span>
     </div>
     <button
+      :id="assignmentControlId(slotKey)"
       ref="triggerButton"
       type="button"
       :aria-label="triggerAccessibleName()"
