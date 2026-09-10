@@ -216,7 +216,7 @@ function confirmClearProgram(): void {
           </button>
         </div>
 
-        <div v-if="!isCancelledMeeting(week)" class="dont-print mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+        <div v-if="!isCancelledMeeting(week) && weekProgress[weekIndex]!.pending.length" class="dont-print mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
           <span class="font-semibold">{{ week.date }}</span>
           <span :class="weekProgress[weekIndex]!.pending.length ? 'text-amber-800' : 'text-green-800'" aria-live="polite">
             {{ weekProgress[weekIndex]!.completed }} de {{ weekProgress[weekIndex]!.total }} asignaciones completas
