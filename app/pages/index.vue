@@ -47,7 +47,7 @@ let highlightTimer: ReturnType<typeof setTimeout> | undefined
 
 onBeforeUnmount(() => clearTimeout(highlightTimer))
 
-function highlightAssignments(slotKeys: string[]): void {
+function highlightAssignments(slotKeys: string[], scrollOnlyIfNeeded = false): void {
   if (!import.meta.client) return
   clearTimeout(highlightTimer)
   const controls = [...new Set(slotKeys.map(assignmentControlId))]
@@ -63,7 +63,10 @@ function highlightAssignments(slotKeys: string[]): void {
   highlightTimer = setTimeout(() => {
     rows.forEach(row => row.classList.remove('assignment-highlight'))
   }, pulseDuration + 5000)
-  rows[0]!.scrollIntoView({ block: 'center' })
+  const bounds = rows[0]!.getBoundingClientRect()
+  const isVisible = bounds.top >= 0 && bounds.bottom <= window.innerHeight
+    && bounds.left >= 0 && bounds.right <= window.innerWidth
+  if (!scrollOnlyIfNeeded || !isVisible) rows[0]!.scrollIntoView({ block: 'center' })
   controls[0]?.focus({ preventScroll: true })
 }
 
@@ -229,7 +232,7 @@ function confirmClearProgram(): void {
             type="button"
             class="rounded border border-amber-600 px-3 py-1.5 text-sm font-semibold text-amber-900 hover:bg-amber-50"
             :aria-label="`Ir a la siguiente pendiente de ${week.date}`"
-            @click="highlightAssignments([weekProgress[weekIndex]!.pending[0]!.key])"
+            @click="highlightAssignments([weekProgress[weekIndex]!.pending[0]!.key], true)"
           >
             Ir a la siguiente pendiente
           </button>
