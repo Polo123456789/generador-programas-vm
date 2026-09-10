@@ -4,6 +4,7 @@ import type { SanityFinding, SanityRule } from '~/utils/sanity'
 import { SANITY_RULE_LABELS } from '~/utils/sanity'
 import type { ProgramSlot } from '~/utils/programSlots'
 import { getSanityActions } from '~/utils/sanityActions'
+import { assignmentControlId } from '~/utils/programProgress'
 
 const props = defineProps<{
   findings: SanityFinding[]
@@ -11,7 +12,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'open-assignment': [slotKey: string]
+  'highlight-assignments': [slotKeys: string[]]
 }>()
 const { getParticipantName, participants } = useParticipants()
 const actionsByFinding = computed(() => new Map(props.findings.map(finding => [
@@ -58,24 +59,15 @@ function unique(values: string[]): string {
             <strong>{{ participantNames(finding) }}:</strong> {{ finding.reason }}
             <span v-if="finding.weeks.length"> Semanas: {{ unique(finding.weeks) }}.</span>
             <span v-if="finding.assignments.length"> Partes: {{ unique(finding.assignments) }}.</span>
-            <details v-if="actionsByFinding.get(finding.id)?.length" class="mt-1 mb-2">
-              <summary class="w-fit cursor-pointer rounded font-semibold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-amber-800">
-                {{ finding.rule === 'lowFrequency' ? 'Ver partes compatibles' : 'Revisar asignaciones' }}
-                ({{ actionsByFinding.get(finding.id)!.length }})
-              </summary>
-              <div class="mt-2 flex flex-wrap gap-2">
-                <button
-                  v-for="action in actionsByFinding.get(finding.id)"
-                  :key="action.key"
-                  type="button"
-                  class="rounded border border-amber-500 bg-white px-3 py-2 text-left hover:bg-amber-100 focus-visible:outline-2 focus-visible:outline-amber-800"
-                  :aria-label="`Abrir asignación: ${action.label}`"
-                  @click="emit('open-assignment', action.key)"
-                >
-                  {{ action.label }} →
-                </button>
-              </div>
-            </details>
+            <a
+              v-if="actionsByFinding.get(finding.id)?.length"
+              :href="`#${assignmentControlId(actionsByFinding.get(finding.id)![0]!.key)}`"
+              class="mt-1 mb-2 block w-fit rounded font-semibold underline underline-offset-2 hover:text-blue-800 focus-visible:outline-2 focus-visible:outline-amber-800"
+              @click.prevent="emit('highlight-assignments', actionsByFinding.get(finding.id)!.map(action => action.key))"
+            >
+              {{ finding.rule === 'lowFrequency' ? 'Ver partes compatibles' : 'Revisar asignaciones' }}
+              ({{ actionsByFinding.get(finding.id)!.length }})
+            </a>
           </li>
         </ul>
       </div>

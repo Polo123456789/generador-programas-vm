@@ -13,6 +13,29 @@ body {
     margin: 0 auto;
 }
 
+@media screen {
+    .assignment-highlight > td {
+        background-color: #dbeafe;
+        animation: assignment-pulse 900ms ease-in-out 2;
+    }
+
+    .assignment-highlight {
+        outline: 2px solid #2563eb;
+        outline-offset: 2px;
+    }
+
+    @keyframes assignment-pulse {
+        0%, 100% { background-color: #dbeafe; }
+        50% { background-color: #93c5fd; }
+    }
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+    .assignment-highlight > td {
+        animation: none;
+    }
+}
+
 @media print {
     body {
         font-size: 11pt;

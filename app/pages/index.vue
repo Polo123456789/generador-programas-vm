@@ -44,12 +44,19 @@ const weekProgress = computed(() => program.value ? getProgramProgress(program.v
 const programSlots = computed(() => program.value ? getProgramSlots(program.value) : [])
 const pendingCount = computed(() => weekProgress.value.reduce((sum, week) => sum + week.pending.length, 0))
 
-function openAssignment(slotKey: string): void {
+function highlightAssignments(slotKeys: string[]): void {
   if (!import.meta.client) return
-  const control = document.getElementById(assignmentControlId(slotKey))
-  control?.scrollIntoView({ block: 'center' })
-  control?.focus({ preventScroll: true })
-  control?.click()
+  const controls = [...new Set(slotKeys.map(assignmentControlId))]
+    .map(id => document.getElementById(id))
+    .filter((control): control is HTMLElement => control !== null)
+  const rows = [...new Set(controls.map(control => control.closest('tr') ?? control))]
+  document.querySelectorAll('.assignment-highlight').forEach(element => element.classList.remove('assignment-highlight'))
+  if (!rows.length) return
+  // Restart the two pulses even when the same link is selected again.
+  void rows[0]!.offsetWidth
+  rows.forEach(row => row.classList.add('assignment-highlight'))
+  rows[0]!.scrollIntoView({ block: 'center' })
+  controls[0]?.focus({ preventScroll: true })
 }
 
 function printProgram(): void {
@@ -163,7 +170,7 @@ function confirmClearProgram(): void {
       {{ saveStatusText }}
     </div>
 
-    <SanityAlerts :findings="sanityFindings" :slots="programSlots" @open-assignment="openAssignment" />
+    <SanityAlerts :findings="sanityFindings" :slots="programSlots" @highlight-assignments="highlightAssignments" />
 
     <div v-if="!program" class="dont-print px-4 py-16 text-center text-gray-500">
       No hay un programa cargado. Registra participantes y carga un programa para comenzar.
@@ -214,7 +221,7 @@ function confirmClearProgram(): void {
             type="button"
             class="rounded border border-amber-600 px-3 py-1.5 text-sm font-semibold text-amber-900 hover:bg-amber-50"
             :aria-label="`Ir a la siguiente pendiente de ${week.date}`"
-            @click="openAssignment(weekProgress[weekIndex]!.pending[0]!.key)"
+            @click="highlightAssignments([weekProgress[weekIndex]!.pending[0]!.key])"
           >
             Ir a la siguiente pendiente
           </button>
