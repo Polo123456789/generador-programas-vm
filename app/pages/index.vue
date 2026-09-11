@@ -216,26 +216,38 @@ function confirmClearProgram(): void {
           </button>
         </div>
 
-        <div v-if="!isCancelledMeeting(week) && weekProgress[weekIndex]!.pending.length" class="dont-print mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-          <span class="font-semibold">{{ week.date }}</span>
-          <span :class="weekProgress[weekIndex]!.pending.length ? 'text-amber-800' : 'text-green-800'" aria-live="polite">
-            {{ weekProgress[weekIndex]!.completed }} de {{ weekProgress[weekIndex]!.total }} asignaciones completas
+        <div v-if="!isCancelledMeeting(week) && weekProgress[weekIndex]!.pending.length" class="dont-print mb-3 flex items-center justify-between gap-4 py-2">
+          <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+            <span class="text-sm text-gray-600" aria-live="polite">
+              {{ weekProgress[weekIndex]!.completed }} de {{ weekProgress[weekIndex]!.total }} asignaciones completas
+            </span>
+            <progress
+              class="h-2 w-28 accent-green-700"
+              :value="weekProgress[weekIndex]!.completed"
+              :max="weekProgress[weekIndex]!.total || 1"
+              :aria-label="`Progreso de ${week.date}`"
+            />
+          </div>
+          <span class="group relative shrink-0">
+            <button
+              type="button"
+              class="flex size-10 items-center justify-center rounded text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-2 focus-visible:outline-amber-600"
+              :aria-label="`Ir a la siguiente pendiente de ${week.date}`"
+              :aria-describedby="`pending-tooltip-${weekIndex}`"
+              @click="highlightAssignments([weekProgress[weekIndex]!.pending[0]!.key], true)"
+            >
+              <svg aria-hidden="true" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 4v14m-6-6 6 6 6-6M5 21h14" />
+              </svg>
+            </button>
+            <span
+              :id="`pending-tooltip-${weekIndex}`"
+              role="tooltip"
+              class="pointer-events-none invisible absolute right-0 bottom-full z-40 mb-1 w-max max-w-[80vw] rounded bg-gray-950 px-3 py-2 text-xs text-white opacity-0 shadow-sm group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
+            >
+              Ir a la siguiente pendiente
+            </span>
           </span>
-          <progress
-            class="h-2 w-28 accent-green-700"
-            :value="weekProgress[weekIndex]!.completed"
-            :max="weekProgress[weekIndex]!.total || 1"
-            :aria-label="`Progreso de ${week.date}`"
-          />
-          <button
-            v-if="weekProgress[weekIndex]!.pending.length"
-            type="button"
-            class="rounded border border-amber-600 px-3 py-1.5 text-sm font-semibold text-amber-900 hover:bg-amber-50"
-            :aria-label="`Ir a la siguiente pendiente de ${week.date}`"
-            @click="highlightAssignments([weekProgress[weekIndex]!.pending[0]!.key], true)"
-          >
-            Ir a la siguiente pendiente
-          </button>
         </div>
         <table v-if="!isCancelledMeeting(week)" class="w-full border-collapse pt-4">
           <tbody>
