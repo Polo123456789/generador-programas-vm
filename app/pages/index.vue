@@ -237,7 +237,9 @@ function confirmClearProgram(): void {
               @click="highlightAssignments([weekProgress[weekIndex]!.pending[0]!.key], true)"
             >
               <svg aria-hidden="true" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 4v14m-6-6 6 6 6-6M5 21h14" />
+                <circle cx="12" cy="12" r="9" />
+                <circle cx="12" cy="12" r="5" />
+                <circle cx="12" cy="12" r="1" />
               </svg>
             </button>
             <span
