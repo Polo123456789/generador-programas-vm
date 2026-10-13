@@ -32,7 +32,7 @@ El servidor no requiere habilitar SSR.
 bun run generate
 ```
 
-Este comando selecciona el proxy externo `corsproxy.io` y sincroniza el sitio en
+Este comando selecciona el proxy externo `cors.dev` y sincroniza el sitio en
 `docs/`, eliminando los assets anteriores. No necesita un servidor de aplicación.
 GitHub Pages publica el directorio `docs/` de la rama `master` al hacer push.
 No se deben publicar los archivos de `.output/` en Git.

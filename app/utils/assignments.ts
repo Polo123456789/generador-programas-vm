@@ -91,7 +91,7 @@ export function countActiveMeetingWeeks(program: MeetingProgram): number {
   return program.weeks.filter(week => !isCancelledMeeting(week)).length
 }
 
-export async function fetchAssignments(url: string, proxyBaseURL = 'https://corsproxy.io/?url='): Promise<ProgramWeek[]> {
+export async function fetchAssignments(url: string, proxyBaseURL = 'https://proxy.cors.dev/?url='): Promise<ProgramWeek[]> {
   const weeks = await extractWeeks(url, proxyBaseURL)
   if (weeks.length === 0) {
     throw new Error('No se encontraron semanas del programa en el enlace proporcionado.')

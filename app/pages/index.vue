@@ -16,7 +16,7 @@ import { getProgramSlots } from '~/utils/programSlots'
 
 const config = useRuntimeConfig()
 const proxyBaseURL = config.public.proxyMode === 'external'
-  ? 'https://corsproxy.io/?url='
+  ? 'https://proxy.cors.dev/?url='
   : `${config.app.baseURL}api/proxy?url=`
 
 const url = useLocalStorage<string>('lastAssignmentsURL', '')
