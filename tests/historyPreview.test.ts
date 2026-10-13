@@ -1,6 +1,28 @@
 import { describe, expect, test } from 'bun:test'
 import type { AssignmentHistoryRecord } from '../app/utils/participants'
-import { getSchoolHistoryWeekRecords } from '../app/utils/historyPreview'
+import { getRoleHistoryRecords, getSchoolHistoryWeekRecords } from '../app/utils/historyPreview'
+
+describe('assignment timeline', () => {
+  test('selects the last eight earlier occurrences of the role by calendar date, without mutating history', () => {
+    const records = Array.from({ length: 10 }, (_, index) => history(
+      String(index), 'old', Date.UTC(2026, 8, index + 1), `${index + 1} de septiembre`, 'gems',
+    ))
+    records[0]!.updatedAt = Date.UTC(2027, 0, 1)
+    const otherRole = history('other', 'old', Date.UTC(2026, 8, 11), '11 de septiembre', 'treasures')
+    const current = history('current', 'current', Date.UTC(2026, 8, 12), '12 de septiembre', 'gems')
+    const all = [...records, otherRole, current]
+    expect(getRoleHistoryRecords(all, 'gems', current.calendarOrder!).map(record => record.id))
+      .toEqual(['9', '8', '7', '6', '5', '4', '3', '2'])
+    expect(all[0]!.id).toBe('0')
+  })
+
+  test('includes migrated reading dates and handles empty history', () => {
+    const record = legacyHistory('legacy', Date.UTC(2026, 8, 21))
+    record.assignmentRole = 'legacyReading'
+    expect(getRoleHistoryRecords([record], 'reading', Date.UTC(2026, 8, 28))).toEqual([record])
+    expect(getRoleHistoryRecords([record], 'bookReader', Date.UTC(2026, 8, 28))).toEqual([])
+  })
+})
 
 describe('history week preview', () => {
   test('returns every assignment from the exact program week', () => {

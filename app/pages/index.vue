@@ -278,7 +278,7 @@ function confirmClearProgram(): void {
                 </div>
               </td>
               <td class="pr-2 text-right">
-                Presidente<AssignmentWarningIndicator :findings="findingsForSlots(`${weekIndex}:president`)" />:
+                <AssignmentHistoryTooltip role="president" :before="calendarOrderForWeek(weekIndex)">Presidente</AssignmentHistoryTooltip><AssignmentWarningIndicator :findings="findingsForSlots(`${weekIndex}:president`)" />:
               </td>
               <td>
                 <StudentAssigner
@@ -300,7 +300,7 @@ function confirmClearProgram(): void {
             <tr><td class="bg-gray-700 p-1 font-bold text-white">TESOROS DE LA BIBLIA</td></tr>
             <tr>
               <td class="py-1" colspan="2">
-                ● {{ week.treasures.title }} ({{ week.treasures.duration }} mins.)<AssignmentWarningIndicator :findings="findingsForSlots(`${weekIndex}:treasures`)" />
+                ● <AssignmentHistoryTooltip role="treasures" :before="calendarOrderForWeek(weekIndex)">{{ week.treasures.title }} ({{ week.treasures.duration }} mins.)</AssignmentHistoryTooltip><AssignmentWarningIndicator :findings="findingsForSlots(`${weekIndex}:treasures`)" />
               </td>
               <td colspan="2">
                 <StudentAssigner
@@ -318,7 +318,7 @@ function confirmClearProgram(): void {
             </tr>
             <tr>
               <td class="py-1" colspan="2">
-                ● Busquemos perlas escondidas (10 mins.)<AssignmentWarningIndicator :findings="findingsForSlots(`${weekIndex}:gems`)" />
+                ● <AssignmentHistoryTooltip role="gems" :before="calendarOrderForWeek(weekIndex)">Busquemos perlas escondidas (10 mins.)</AssignmentHistoryTooltip><AssignmentWarningIndicator :findings="findingsForSlots(`${weekIndex}:gems`)" />
               </td>
               <td colspan="2">
                 <StudentAssigner
@@ -336,7 +336,7 @@ function confirmClearProgram(): void {
             </tr>
             <tr>
               <td class="py-1">
-                ● Lectura de la Biblia<AssignmentWarningIndicator :findings="findingsForSlots(`${weekIndex}:reading`)" />
+                ● <AssignmentHistoryTooltip role="reading" :before="calendarOrderForWeek(weekIndex)">Lectura de la Biblia</AssignmentHistoryTooltip><AssignmentWarningIndicator :findings="findingsForSlots(`${weekIndex}:reading`)" />
               </td>
               <td class="pr-2 text-right">Estudiante:</td>
               <td colspan="2">
@@ -392,7 +392,7 @@ function confirmClearProgram(): void {
             <tr><td class="py-1" colspan="4">● Canción {{ week.songs[1] }}</td></tr>
             <tr v-for="(assignment, assignmentIndex) in week.livingSpeeches" :key="`living-${assignmentIndex}`">
               <td class="py-1" colspan="2">
-                ● {{ assignment.title }} ({{ assignment.duration }} mins.)<AssignmentWarningIndicator
+                ● <AssignmentHistoryTooltip role="livingSpeech" :before="calendarOrderForWeek(weekIndex)">{{ assignment.title }} ({{ assignment.duration }} mins.)</AssignmentHistoryTooltip><AssignmentWarningIndicator
                   :findings="findingsForSlots(`${weekIndex}:living:${assignmentIndex}:livingSpeech`)"
                 />
               </td>
@@ -432,7 +432,7 @@ function confirmClearProgram(): void {
                   :findings="findingsForSlots(`${weekIndex}:bookConductor`, `${weekIndex}:bookReader`)"
                 />
               </td>
-              <td class="pr-2 text-right">Conductor/Lector:</td>
+              <td class="pr-2 text-right"><AssignmentHistoryTooltip role="bookConductor" :before="calendarOrderForWeek(weekIndex)">Conductor</AssignmentHistoryTooltip>/<AssignmentHistoryTooltip role="bookReader" :before="calendarOrderForWeek(weekIndex)">Lector</AssignmentHistoryTooltip>:</td>
               <td>
                 <StudentAssigner
                   v-model="week.bookConductorId"
@@ -465,7 +465,7 @@ function confirmClearProgram(): void {
             <tr>
               <td class="py-1">● Canción {{ week.songs[2] }}</td>
               <td class="pr-2 text-right">
-                Oración<AssignmentWarningIndicator :findings="findingsForSlots(`${weekIndex}:finalPrayer`)" />:
+                <AssignmentHistoryTooltip role="finalPrayer" :before="calendarOrderForWeek(weekIndex)">Oración</AssignmentHistoryTooltip><AssignmentWarningIndicator :findings="findingsForSlots(`${weekIndex}:finalPrayer`)" />:
               </td>
               <td colspan="2">
                 <StudentAssigner

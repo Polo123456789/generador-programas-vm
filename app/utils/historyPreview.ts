@@ -1,5 +1,25 @@
-import type { AssignmentHistoryRecord } from './participants'
+import type { AssignmentHistoryRecord, ParticipantRole } from './participants'
 import { inferWeekCalendarOrder } from './weekDates'
+
+export function getRoleHistoryRecords(
+  history: AssignmentHistoryRecord[],
+  role: ParticipantRole,
+  before: number,
+): AssignmentHistoryRecord[] {
+  const order = (record: AssignmentHistoryRecord): number => record.calendarOrder
+    ?? inferWeekCalendarOrder(record.weekDate, record.updatedAt)
+    ?? record.chronologicalOrder
+    ?? record.updatedAt
+
+  return history
+    .filter(record => (
+      (record.assignmentRole === role || (role === 'reading' && record.assignmentRole === 'legacyReading'))
+      && record.participantIds.length > 0
+      && order(record) < before
+    ))
+    .sort((left, right) => order(right) - order(left) || right.updatedAt - left.updatedAt)
+    .slice(0, 8)
+}
 
 export function getSchoolHistoryWeekRecords(
   history: AssignmentHistoryRecord[],
