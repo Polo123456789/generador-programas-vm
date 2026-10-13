@@ -1,75 +1,48 @@
-# Nuxt Minimal Starter
+# Generador Programas VM
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+La misma aplicación se puede publicar con servidor o como sitio estático.
 
-## Setup
-
-Make sure to install dependencies:
+## Instalación
 
 ```bash
-# npm
-npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
+bun install --frozen-lockfile
 ```
 
-## Development Server
-
-Start the development server on `http://localhost:3000`:
+## Con servidor
 
 ```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
 bun run dev
 ```
 
-## Production
-
-Build the application for production:
+Para producción:
 
 ```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
 bun run build
+bun run start
 ```
 
-Locally preview production build:
+La aplicación está en `/generador-programas-vm/`. Las importaciones usan el endpoint
+propio `/generador-programas-vm/api/proxy`, que solo permite HTTPS hacia
+`wol.jw.org` y `www.jw.org`, incluidos los destinos de redirecciones.
+El servidor no requiere habilitar SSR.
+
+## Estático y GitHub Pages
 
 ```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
+bun run generate
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+Este comando selecciona el proxy externo `corsproxy.io` y sincroniza el sitio en
+`docs/`, eliminando los assets anteriores. No necesita un servidor de aplicación.
+GitHub Pages publica el directorio `docs/` de la rama `master` al hacer push.
+No se deben publicar los archivos de `.output/` en Git.
+
+Antes de generar o publicar, ejecutar los controles de `AGENTS.md`:
+
+```bash
+bunx eslint .
+bunx nuxi typecheck
+bun run build
+bun run generate
+git diff --check
+```

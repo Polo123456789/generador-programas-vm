@@ -14,6 +14,11 @@ import { extractCalendarYear, getWeekCalendarOrder } from '~/utils/weekDates'
 import { assignmentControlId, getProgramProgress } from '~/utils/programProgress'
 import { getProgramSlots } from '~/utils/programSlots'
 
+const config = useRuntimeConfig()
+const proxyBaseURL = config.public.proxyMode === 'external'
+  ? 'https://corsproxy.io/?url='
+  : `${config.app.baseURL}api/proxy?url=`
+
 const url = useLocalStorage<string>('lastAssignmentsURL', '')
 if (import.meta.client && !url.value) {
   const legacyUrl = window.localStorage.getItem('lastAssingmentsURL')
@@ -143,7 +148,7 @@ async function fetchAllAssignments(): Promise<void> {
   assignmentsError.value = ''
   try {
     const calendarYear = extractCalendarYear(url.value) ?? new Date().getFullYear()
-    const weeks = await fetchAssignments(url.value)
+    const weeks = await fetchAssignments(url.value, proxyBaseURL)
     if (program.value && !window.confirm('Cargar este programa reemplazará el borrador actual. ¿Deseas continuar?')) return
     replaceProgram(weeks, calendarYear)
   } catch (error) {

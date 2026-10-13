@@ -91,15 +91,15 @@ export function countActiveMeetingWeeks(program: MeetingProgram): number {
   return program.weeks.filter(week => !isCancelledMeeting(week)).length
 }
 
-export async function fetchAssignments(url: string): Promise<ProgramWeek[]> {
-  const weeks = await extractWeeks(url)
+export async function fetchAssignments(url: string, proxyBaseURL = 'https://corsproxy.io/?url='): Promise<ProgramWeek[]> {
+  const weeks = await extractWeeks(url, proxyBaseURL)
   if (weeks.length === 0) {
     throw new Error('No se encontraron semanas del programa en el enlace proporcionado.')
   }
   const results: ProgramWeek[] = []
 
   for (const week of weeks) {
-    const scraped = await extractAssignments(week)
+    const scraped = await extractAssignments(week, proxyBaseURL)
     results.push({
       date: titleCase(scraped.date),
       songs: scraped.songs,
@@ -166,8 +166,8 @@ function titleCase(value: string): string {
   )
 }
 
-async function getRequest(url: string): Promise<Response> {
-  const proxyUrl = `https://corsproxy.io/?url=${url}`
+async function getRequest(url: string, proxyBaseURL: string): Promise<Response> {
+  const proxyUrl = `${proxyBaseURL}${encodeURIComponent(url)}`
   const response = await fetch(proxyUrl)
   if (!response.ok) {
     throw new Error(`Failed to request ${url} via proxy: ${response.statusText}`)
@@ -175,8 +175,8 @@ async function getRequest(url: string): Promise<Response> {
   return response
 }
 
-async function extractWeeks(url: string): Promise<Week[]> {
-  const response = await getRequest(url)
+async function extractWeeks(url: string, proxyBaseURL: string): Promise<Week[]> {
+  const response = await getRequest(url, proxyBaseURL)
   const html = await response.text()
   const $ = cheerio.load(html)
   const weeks: Week[] = []
@@ -194,7 +194,7 @@ async function extractWeeks(url: string): Promise<Week[]> {
   return weeks
 }
 
-async function extractAssignments(week: Week): Promise<ScrapedAssignmentResult> {
+async function extractAssignments(week: Week, proxyBaseURL: string): Promise<ScrapedAssignmentResult> {
   const result: ScrapedAssignmentResult = {
     date: week.name,
     assignedReading: '',
@@ -204,7 +204,7 @@ async function extractAssignments(week: Week): Promise<ScrapedAssignmentResult> 
     livingSpeeches: [],
   }
 
-  const response = await getRequest(week.url)
+  const response = await getRequest(week.url, proxyBaseURL)
   const html = await response.text()
   const $ = cheerio.load(html)
 

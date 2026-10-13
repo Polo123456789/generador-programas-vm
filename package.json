@@ -5,7 +5,8 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
-    "generate": "nuxt generate && rsync -av --delete --exclude=.nojekyll .output/public/ ./docs",
+    "generate": "NUXT_PUBLIC_PROXY_MODE=external nuxt generate && rsync -av --delete --exclude=.nojekyll .output/public/ ./docs",
+    "start": "node .output/server/index.mjs",
     "preview": "nuxt preview",
     "test": "bun test",
     "postinstall": "nuxt prepare"

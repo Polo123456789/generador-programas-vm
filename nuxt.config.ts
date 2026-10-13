@@ -2,6 +2,11 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineNuxtConfig({
   ssr: false,
+  runtimeConfig: {
+    public: {
+      proxyMode: process.env.NUXT_PUBLIC_PROXY_MODE || 'server',
+    },
+  },
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   modules: ['@nuxt/eslint', '@nuxt/icon'],
