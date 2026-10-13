@@ -20,7 +20,7 @@ let openTimer: ReturnType<typeof setTimeout> | null = null
 let closeTimer: ReturnType<typeof setTimeout> | null = null
 
 const records = computed(() => (
-  getRoleHistoryRecords(assignmentHistory.value, props.role, Math.min(props.before, Date.now()))
+  getRoleHistoryRecords(assignmentHistory.value, props.role, props.before)
 ))
 
 function historyDate(record: AssignmentHistoryRecord): string {
