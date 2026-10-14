@@ -1,48 +1,90 @@
-# Generador Programas VM
+# Generador de programas VM
 
-La misma aplicación se puede publicar con servidor o como sitio estático.
+## Qué hace la app
 
-## Instalación
+Permite preparar el programa de Vida y Ministerio Cristianos: carga las partes de la guía de actividades, asigna participantes y guarda el resultado para imprimir o descargar como PDF.
 
-```bash
-bun install --frozen-lockfile
-```
+[Abrir la app](https://polo123456789.github.io/generador-programas-vm/)
 
-## Con servidor
+## Cómo usarla
 
-```bash
-bun run dev
-```
+### 1. Crear asignados
 
-Para producción:
+En **Gestionar Participantes**, añade a cada persona y marca las partes que puede realizar.
 
-```bash
-bun run build
-bun run start
-```
+### 2. Descargar programa
 
-La aplicación está en `/generador-programas-vm/`. Las importaciones usan el endpoint
-propio `/generador-programas-vm/api/proxy`, que solo permite HTTPS hacia
-`wol.jw.org` y `www.jw.org`, incluidos los destinos de redirecciones.
-El servidor no requiere habilitar SSR.
+Copia el enlace de la guía de actividades desde WOL, pégalo en la app y pulsa **Cargar**.
 
-## Estático y GitHub Pages
+### 3. Llenar programa
 
-```bash
-bun run generate
-```
+Pulsa **Elegir** en cada parte para asignar a los participantes. Consulta el historial pasando el cursor sobre los textos subrayados y revisa los avisos. Para cambiar una asignación, pulsa **Cambiar**.
 
-Este comando selecciona el proxy externo `cors.dev` y sincroniza el sitio en
-`docs/`, eliminando los assets anteriores. No necesita un servidor de aplicación.
-GitHub Pages publica el directorio `docs/` de la rama `master` al hacer push.
-No se deben publicar los archivos de `.output/` en Git.
+Cuando termines, pulsa **Imprimir / PDF**. El trabajo se guarda en el navegador; puedes descargar un respaldo desde **Gestionar Participantes**.
 
-Antes de generar o publicar, ejecutar los controles de `AGENTS.md`:
+## Características
 
-```bash
-bunx eslint .
-bunx nuxi typecheck
-bun run build
-bun run generate
-git diff --check
-```
+Las capturas usan nombres ficticios y situaciones de ejemplo.
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Historial por cargo al pasar el cursor</h3>
+      <img src="readme-assets/hover-cargo.jpg" alt="Historial de perlas con fechas y participantes">
+    </td>
+    <td width="50%" valign="top">
+      <h3>Historial de la semana al pasar el cursor</h3>
+      <img src="readme-assets/hover-semana.jpg" alt="Partes y parejas de una semana desde el selector">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Selección según la última participación</h3>
+      <img src="readme-assets/selector.jpg" alt="Candidatos para presidente ordenados por última participación">
+    </td>
+    <td width="50%" valign="top">
+      <h3>Selección de parejas</h3>
+      <img src="readme-assets/parejas.jpg" alt="Acompañantes ordenados por tiempo sin participar juntos">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Partes con uno o dos estudiantes</h3>
+      <img src="readme-assets/estudiantes.jpg" alt="Selector con opción de uno o dos estudiantes">
+    </td>
+    <td width="50%" valign="top">
+      <h3>Participantes y aptitudes</h3>
+      <img src="readme-assets/participantes.jpg" alt="Aptitudes y controles para renombrar, ocultar y activar participantes">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Progreso y asignaciones pendientes</h3>
+      <img src="readme-assets/pendientes.jpg" alt="Semana con 13 de 14 asignaciones completas">
+    </td>
+    <td width="50%" valign="top">
+      <h3>Reuniones canceladas y visitas del superintendente</h3>
+      <img src="readme-assets/semanas-especiales.jpg" alt="Opciones especiales de una semana">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Avisos sobre el reparto de asignaciones</h3>
+      <img src="readme-assets/alertas.jpg" alt="Avisos de asignaciones consecutivas, balance de roles y carga semanal">
+    </td>
+    <td width="50%" valign="top">
+      <h3>Avisos sobre parejas y aptitudes</h3>
+      <img src="readme-assets/alertas-parejas.jpg" alt="Avisos de pareja repetida, aptitudes y participante oculto">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Avisos junto a cada parte</h3>
+      <img src="readme-assets/alerta-asignacion.jpg" alt="Detalle de los avisos de una asignación">
+    </td>
+    <td width="50%" valign="top">
+      <h3>Respaldo y restauración</h3>
+      <img src="readme-assets/respaldo.jpg" alt="Revisión de un respaldo antes de restaurarlo">
+    </td>
+  </tr>
+</table>
